@@ -1,0 +1,17 @@
+\begin{tabular}{lrrrrrr}
+\toprule
+Variant & Mean rank & Median rank & Top-1 & Top-5 & Distance (m) & Overlap \\
+\midrule
+\multicolumn{7}{l}{\emph{Fixed weights}} \\
+\quad V1 (feature judge) & 2429.3 & 2395 & 0.000 & 0.000 & 1.000 & 0.287 \\
+\quad V2 (image judge) & 2429.3 & 2395 & 0.000 & 0.000 & 0.958 & 0.312 \\
+\quad V3 (score only, baseline) & 2429.3 & 2395 & 0.000 & 0.000 & 1.000 & 0.287 \\
+\quad V4 (quantum judge) & 2429.3 & 2395 & 0.000 & 0.000 & 1.000 & 0.287 \\
+\midrule
+\multicolumn{7}{l}{\emph{Learned weights}} \\
+\quad V1 (feature judge) & 21.9 & 10 & 0.000 & 0.429 & 0.248 & 0.704 \\
+\quad V2 (image judge) & 21.7 & 9 & 0.143 & 0.429 & 0.264 & 0.718 \\
+\quad V3 (score only, baseline) & 21.7 & 9 & 0.143 & 0.429 & 0.271 & 0.722 \\
+\quad V4 (quantum judge) & 22.0 & 11 & 0.143 & 0.429 & 0.282 & 0.683 \\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,146 @@
+\begin{titlepage}
+\centering
+\vspace*{2.2cm}
+
+{\LARGE\bfseries Predicting Structural Column Arrangements\\[0.35em]
+from Architectural Floor Plans\par}
+
+\vspace{1.1cm}
+{\large A Controlled Comparison of an Algorithmic Score, a Feature-Based
+Classifier, an Image-Based Classifier and a Quantum Classifier\par}
+
+\vspace{2.6cm}
+{\large MSc Thesis\par}
+\vspace{0.8cm}
+{\large Kritvi Gera\par}
+\vspace{0.2cm}
+{\large CID: 06053693\par}
+\vspace{0.2cm}
+{\large MSc. General Structural Engineering with Data Science\par}
+\vspace{0.4cm}
+{\large Imperial College London\par}
+
+\vspace{2.8cm}
+\begin{minipage}{0.8\textwidth}
+\centering\small
+\textit{Given an architectural floor plan, this work enumerates candidate
+structural column arrangements, ranks them, and measures how closely the
+highest-ranked arrangement matches the one the real building uses. Four
+ranking methods are compared on one task, one corpus and one set of
+labels, with the algorithm-only method retained as the baseline.}
+\end{minipage}
+
+\vfill
+{\normalsize August 2026\par}
+\end{titlepage}
+
+\pagenumbering{roman}
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\markboth{Abstract}{}
+
+At the start of a building's design someone must decide where the columns
+will stand. The architectural drawing records the walls and the rooms; it
+does not record the structure. This thesis asks whether a first proposal
+for that decision can be generated and, more importantly, whether it can
+be \emph{measured}.
+
+Three public floor-plan datasets are converted into a single corpus of
+29,279 plans. Because no drawing records a column layout, a label is
+derived by a stated procedure: walls thinner than 160\,mm are discarded as
+partitions, a grid is built from the survivors, and a column is placed at
+every grid crossing that lies physically inside one of those walls. The
+resulting arrangement is an equivalent-frame idealisation of a
+wall-bearing structure rather than a recovered design, and the thesis is
+explicit that every subsequent figure is conditional on that procedure.
+The single arbitrary constant in it, the 160\,mm threshold, is varied
+between 140 and 200\,mm and the effect on the headline result is reported.
+
+Candidate arrangements are enumerated from the parsed grid and ranked by a
+dimensionless geometric score built from five measures: column density, a
+load-free index of bending demand, grid irregularity, the fraction of
+columns standing away from walls, and the repetition of bay sizes. The
+score contains no member sizes, no material prices and no load values. Its
+five weights are obtained two independent ways, once by equal weighting
+and once by learning them from 52,724 paired comparisons in which the real
+arrangement of a plan must outrank alternatives generated on that same
+plan's grid.
+
+Four ranking variants are then compared. The baseline uses the score
+alone. The other three add a learned classifier that re-orders the
+score's fifteen best candidates: a gradient-boosted model reading six
+scale-independent measurements, a convolutional network reading 64 by 64
+pictures of the arrangement, and a four-qubit variational quantum
+classifier. All three are trained on identical examples and labels, with
+implausible examples produced by moving column positions rather than by
+editing the numbers a model reads, which removes a circularity present in
+an earlier version of this work and reduces the feature classifier's
+reported score from 0.947 to 0.862.
+
+Three findings are reported. First, the score weights matter far more than
+the choice of classifier: learned weights move the median rank of the
+correct arrangement, among roughly four thousand candidates, from about
+2,400 to nine, whereas changing classifier moves it by one or two places.
+Second, the image classifier's advantage over the feature classifier
+(0.995 against 0.860 ROC AUC) is attributable to information rather than
+architecture; blanking the wall layer from its input returns it to 0.874,
+level with the feature model. Third, the four-qubit circuit matches its
+capacity-matched classical control at every training-set size and gains
+only 0.007 ROC AUC from fifty times more data, while equally informed tree
+ensembles gain 0.075, which locates its ceiling in expressive capacity
+rather than in data volume.
+
+No variant separates from the baseline at conventional significance on the
+seven held-out plans. That negative result is reported as the outcome of
+the experiment, together with the measures taken to make it trustworthy:
+candidate coverage is stated before any accuracy figure, splits are
+grouped by plan and repeated, and every hand-chosen constant is varied and
+its influence measured.
+
+\cleardoublepage
+\tableofcontents
+\cleardoublepage
+\listoftables
+\addcontentsline{toc}{chapter}{List of Tables}
+\cleardoublepage
+\listoffigures
+\addcontentsline{toc}{chapter}{List of Figures}
+
+\chapter*{Nomenclature}
+\addcontentsline{toc}{chapter}{Nomenclature}
+\markboth{Nomenclature}{}
+
+The report avoids specialist vocabulary where plain wording will serve.
+The terms below are unavoidable and are used consistently throughout.
+
+\begin{description}[style=nextline,leftmargin=3.2cm,labelwidth=3cm]
+\item[Column arrangement] The set of positions at which columns stand on
+one floor of a building.
+\item[Load-bearing wall] A wall that carries the weight of the structure
+above it, as opposed to a partition that merely divides rooms.
+\item[Grid line] A straight reference line running the full width or depth
+of a plan. Columns are placed where two grid lines cross.
+\item[Span] The distance between two adjacent columns; equivalently the
+width of one structural bay.
+\item[Label, or ground truth] The arrangement treated as correct when
+accuracy is measured. Architectural drawings record none, so it is derived
+from the load-bearing walls by the procedure of Chapter~3.
+\item[Judge] A machine-learning model that estimates how plausible a
+candidate arrangement is. Three are compared, and the baseline uses none.
+\item[Candidate set] Every arrangement the generator produces for one
+plan, from which each variant must choose.
+\item[ROC AUC] A measure of how well a model separates two classes,
+running from 0.5 for a model no better than chance to 1.0 for a perfect
+one.
+\item[PR AUC] A companion measure that is more informative than ROC AUC
+when one class is rare; both are reported throughout.
+\item[Kendall's $\tau$] A rank correlation running from $-1$ to $+1$, used
+here to express how far a ranking moves when a weight is perturbed.
+\item[Chamfer distance] The average distance from each column in one
+arrangement to the nearest column in another; a measure of near-agreement
+that does not require an exact match.
+\end{description}
+
+\cleardoublepage
+\pagenumbering{arabic}

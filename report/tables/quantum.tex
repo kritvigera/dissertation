@@ -1,0 +1,14 @@
+\begin{tabular}{llrrrrrr}
+\toprule
+Model & & \multicolumn{4}{c}{Training rows} & Gain & Time (s) \\
+\cmidrule(lr){3-6}
+ & & 400 & 2,000 & 8,000 & 19,936 & & \\
+\midrule
+Boosting, all 6 measurements & C & 0.790 & 0.841 & 0.860 & 0.865 & $+0.075$ & 5 \\
+Boosting, same 4 measurements & C & 0.705 & 0.753 & 0.779 & 0.789 & $+0.084$ & 3 \\
+Logistic, same 4 (capacity-matched) & C & 0.747 & 0.749 & 0.746 & 0.746 & $-0.001$ & 0 \\
+\midrule
+VQC, one encoding, 2 layers & Q & 0.741 & 0.751 & 0.734 & 0.748 & $+0.007$ & 40 \\
+Data re-uploading, 6 layers & Q & 0.741 & 0.761 & 0.756 & 0.746 & $+0.005$ & 251 \\
+\bottomrule
+\end{tabular}

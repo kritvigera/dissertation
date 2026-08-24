@@ -1,0 +1,247 @@
+\chapter{Discussion and Conclusions}
+\label{ch:conclusion}
+
+\section{What the comparison found}
+
+The four-variant design was built to answer the question ``which judge is
+best?'' and it answered a prior question instead: \textbf{the score weights
+matter far more than the choice of judge}. Learning five interpretable
+weights from the corpus moved the median rank of the correct arrangement,
+among roughly four thousand candidates, from about 2,395 to nine.
+Substituting one judge for another moved it by one or two places. Any
+future effort on this pipeline is better spent on the ordering function
+than on the classifier that adjusts it.
+
+None of the three judges repays its cost end to end: all three move the
+ranking by one or two places in mixed directions, and none separates from
+the baseline at conventional significance. As classifiers in isolation,
+though, the image judge is the strongest of the three (0.995 ROC AUC), and
+the blanked-wall control establishes that its advantage there is a matter
+of information rather than architecture: the convolutional network does
+not read column patterns better than a gradient-boosted model reads
+measurements of them; it wins because a picture can carry the relationship
+between columns and walls across sources drawn in incompatible units,
+which six scale-independent measurements cannot.
+
+The quantum result is the cleanest negative finding in the work. A
+four-qubit circuit learns this task to the level of a linear model on the
+same four measurements, and behaves like one when given more data: fifty
+times the training set moves it by 0.007, while equally informed tree
+ensembles gain 0.075. Its ceiling is expressive capacity, not data volume.
+That is a sharper statement than a single small-sample score can support,
+and it required the size sweep and the fixed test set to obtain.
+
+\section{The signal that dominates, and its circularity}
+
+One signal recurs throughout the results: whether columns coincide with
+load-bearing walls. It appears as the largest learned score weight, as the
+image judge's 0.995 with the wall layer present against 0.874 without, and
+as the reason the image judge is the only one that helps end to end.
+
+The qualification must be stated as often as the finding. The derived
+labels place columns inside load-bearing walls \emph{by definition}, so the
+strength of that signal is partly a restatement of the labelling
+procedure rather than a discovery about engineering practice. What the
+results establish is that \emph{on this corpus, with these labels}, the
+strongest available indication that an arrangement is real is its
+registration with the walls, and that every representation permitted to see
+the walls finds it. Whether that also holds for arrangements a practising
+engineer would draw is not established here, and cannot be without the
+external check that Section~\ref{sec:further} names.
+
+\section{Negative results, and why they are reported}
+
+Three results in this thesis are negative, and each is reported as an
+outcome.
+
+No variant beats the baseline at conventional significance on seven plans;
+every $p$-value is 1.000. The equal-weight score is actively wrong about
+density for wall-bearing buildings, to the point where deleting the
+density measure improves its accuracy fourfold. And the quantum arm,
+trained on the same 80\% partition as the other judges, recovers the
+correct arrangement first on one of the seven plans -- the same plan the
+baseline and the image judge also recover -- and is otherwise the weakest
+of the four.
+
+These are reported because the protocol was designed to make them
+reportable. The baseline was retained rather than discarded once the
+learned variants were built; comparisons are paired rather than presented
+as competing averages; the sample size and its consequences are stated
+rather than left implicit; and candidate coverage is reported before any
+accuracy figure so that no result can be inflated by a ceiling the reader
+cannot see. A protocol that can only produce favourable findings is not a
+protocol.
+
+\section{What did not work}
+
+Several approaches were tried and abandoned, and the record is useful.
+
+The cost function was removed for the reason given in
+Section~\ref{sec:removals}: its unit rates could not be defended, and no
+improvement to the member sizing beneath them would have changed that. Two
+sizing errors inside it, sizing beams on bending capacity alone and
+neglecting column buckling, were corrected before the whole apparatus was
+deleted; the corrections are recorded in the repository history rather than
+here, since the stage no longer exists.
+
+The circular training examples described in Section~\ref{sec:negatives}
+inflated the feature judge by roughly a tenth of its reported score. An
+earlier conclusion that hand-made features beat a convolutional network on
+this data has been superseded: that experiment showed the network grid
+lines only, with no wall layer and with columns placed at every crossing,
+under the earlier labels. On grid lines alone the measurements did win; on
+arrangements shown in their architectural context the pictures do.
+
+Two errors were made and caught during this revision, and both are
+instructive. The blend that combines score with judge initially
+standardised the penalty within the shortlist rather than across the
+candidate set, which muted the judge entirely; it was caught because all
+four variants returned byte-identical tables. And the first attempt at the
+quantum size sweep used different test sets at different scales, which made
+the circuits appear to degrade with more data; it was caught because the
+capacity-matched control degraded by the same amount.
+
+\section{Limitations}
+\label{sec:limitations}
+
+\begin{enumerate}
+\item \textbf{The labels are derived, not observed.} They are an
+equivalent-frame idealisation of wall-bearing buildings, conditioned on a
+160\,mm threshold. The derivation is documented, externally sanity-checked
+against an independent building inventory, and its constant is varied with
+the effect reported. It remains a modelling decision, and every accuracy
+figure in this work means agreement with it.
+
+\item \textbf{No measurement is independent of the labels.} An earlier
+version of this work included a lateral drift index, which provided a
+second basis of comparison that did not depend on the labelling procedure.
+It has been removed. If the procedure is systematically wrong, no result
+reported here would reveal it. The threshold sensitivity bounds the effect
+of one assumption \emph{within} the procedure; it cannot test the
+procedure itself.
+
+\item \textbf{One signal is partly circular}, as
+Section~\ref{sec:mlresults} and the discussion above state at each
+appearance.
+
+\item \textbf{Seven evaluation plans are few.} Paired tests are used and
+their limited power is reported. The protocol scales without modification
+to a larger held-out set, and enlarging it is straightforward.
+
+\item \textbf{The image judge discards absolute scale by construction.} It
+cannot distinguish a six-metre span from a six-foot one. This is a
+deliberate trade for cross-source comparability, and the blanked-wall
+control quantifies what the trade buys.
+
+\item \textbf{The quantum comparison uses one split per training size},
+so the small movements between sizes cannot be separated from run-to-run
+variation. The sweep is read for its trend, not for its individual
+figures.
+
+\item \textbf{Class balance is synthetic.} The judges are trained and
+tested at equal class proportions by construction, so neither ROC AUC nor
+PR AUC estimates performance at deployment prevalence.
+
+\item \textbf{CubiCasa's labels rest on a proportional rather than a
+physical threshold}, because its drawings have no recoverable scale.
+
+\item \textbf{Enumeration beyond the configured limit is sampled}, so
+completeness is not guaranteed for heavily subdivided plans.
+
+\item \textbf{Angled walls are excluded from the evaluation}, because the
+labelling procedure cannot represent a column standing off the rectangular
+grid. The angled-wall path exists in the pipeline and is exercised only in
+demonstration.
+
+\item \textbf{The corpus is residential and the target is commercial.}
+Swiss Dwellings contains apartment blocks of 12 to 37\,m across; the frames
+this pipeline is ultimately aimed at are larger and more regular.
+
+\item \textbf{The novelty claim rests partly on absence of evidence.}
+Searches found no comparable study, but no search establishes that none
+exists; the claim is worded to be falsifiable by a single
+counter-example.
+\end{enumerate}
+
+\section{Conclusions}
+
+\begin{enumerate}
+\item \textbf{Candidate coverage is a design property, not a given.} The
+correct arrangement appears among the candidates only because the parser
+and the generator were aligned with the labelling procedure. Coverage must
+be reported before accuracy, or the accuracy of several methods will
+silently measure one shared ceiling.
+
+\item \textbf{Five interpretable weights, learned by ranking, outperform
+both hand-set equality and an opaque second model.} The median rank of the
+correct arrangement improves from about 2,395 to nine. For wall-bearing
+residential stock the designerly priors on density and regularity point in
+the wrong direction, which a learned linear ranker exposes and a black box
+would have concealed.
+
+\item \textbf{Judges are second-order once the ordering function is
+right}, and only the appearance-based judge improves on the score alone,
+consistently in direction though not significantly at this sample size.
+
+\item \textbf{A four-qubit circuit learns the task to matched-classical
+level and no further, and more data does not move it.} Its ceiling is
+expressive capacity. No advantage is claimed in either direction, and the
+computational cost of establishing even that much was four orders of
+magnitude greater than the classical control's.
+
+\item \textbf{The strongest plausibility signal available on this corpus
+is column-wall registration}, and a thesis built on derived labels must
+say, as this one does, that the signal is partly its own derivation
+reflected back.
+\end{enumerate}
+
+\section{Further work}
+\label{sec:further}
+
+\begin{enumerate}
+\item \textbf{An expert rating study.} Ten to twenty plans, each variant's
+first choice presented alongside the derived label, rated blind by a
+practising structural engineer. This is the highest-value addition
+available, because it would convert every claim in this report from
+``the model agrees with our labelling procedure'' into ``the model agrees
+with a human engineer''.
+
+\item \textbf{Reinstate a measurement independent of the labels.} Any
+check that does not depend on the derived arrangement would restore what
+the removal of the drift axis took away. A lateral or gravity calculation
+with real member sizes would serve, as would the study above.
+
+\item \textbf{Recover absolute scale for CubiCasa5K}, most plausibly from
+standard door widths, so that the physical threshold applies to a second
+source and cross-source claims rest on two sources rather than one.
+
+\item \textbf{Enlarge the held-out set} until the paired tests have the
+power to resolve the differences the present tables only suggest.
+
+\item \textbf{Learn the placement rule itself.} The generator currently
+chooses between two fixed rules, lattice and walls. Which crossings of a
+chosen grid receive a column is itself a learnable decision, and it is
+the part of the problem this work has left most untouched.
+\end{enumerate}
+
+\section{Reproduction}
+
+Every notebook in the repository reads committed data tables and runs
+without the raw archives. The corpus, the labels, the load-bearing walls
+and every results table are published, which is sufficient to retrain all
+four learned components. The following reproduces the results in this
+report:
+
+\begin{quote}\small\ttfamily
+python 02\_data\_pipeline/regenerate\_corpus.py --swiss ... --cubicasa ...\\
+python 07\_layout\_classifier/train\_ml1.py\\
+python 08\_ml\_ranker/train\_learned\_weights.py\\
+python 10\_quantum\_ml/train\_quantum.py\\
+python 11\_cnn\_baseline/train\_ml2.py\\
+python 11\_cnn\_baseline/train\_ml2\_ablation.py\\
+python 12\_evaluation/evaluate.py --variants V1,V2,V3,V4
+\end{quote}
+
+The first command requires the two raw archives, which are large and are
+not committed; it validates its output against the committed tables before
+overwriting them. The remaining commands require only the repository.

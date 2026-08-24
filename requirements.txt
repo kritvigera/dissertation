@@ -1,0 +1,16 @@
+numpy
+pandas
+matplotlib
+seaborn
+scikit-learn
+scipy
+jupyter
+
+# stage 02 only: measuring wall thickness from the raw archive polygons
+shapely
+
+# stage 11 only (the quantum judge, pipeline variant V4)
+pennylane
+
+# stage 12 only (the image judge, pipeline variant V2)
+tensorflow

@@ -1,0 +1,384 @@
+\chapter{Literature Review}
+\label{ch:literature}
+
+\section{Scope and search strategy}
+
+This review is not a survey of machine learning in civil engineering. It is
+the evidence base for a specific set of design decisions, and each section
+closes by naming the decision it supports or the decision it fails to
+support. Forty-three sources are cited, each verified against the
+publisher record or a primary index.
+
+Searches were run in August 2026 across Google Scholar, arXiv, the ACM
+Digital Library, ScienceDirect, Springer, IEEE Xplore and Google Patents,
+using the terms \emph{floor plan dataset}, \emph{floorplan
+vectorisation}, \emph{structural layout generation}, \emph{column
+placement}, \emph{shear wall layout}, \emph{structural surrogate model},
+\emph{topology optimisation deep learning}, \emph{noise contrastive
+estimation}, \emph{learning to rank} and \emph{variational quantum
+classifier}. Backward snowballing proceeded from two reviews
+\citep{sun2021mlreview,malaga2022opinionated} and from the closest prior
+art \citep{wang2024columnrl,liao2021shearwallgan}. A source was included
+only if it supplies data this work consumes, establishes a method it uses,
+or contests a decision it makes.
+
+Three limits on the search should be stated at the outset. Coverage is
+English-language and mainly open-access, which under-represents generative
+structural design as practised and published in China. Patents were
+searched only through Google Patents and only in English, which matters
+more than usual here because the closest prior art proved to be a patent.
+And this is a narrative review assembled around an existing design rather
+than a protocol-driven systematic review, so it is exposed to the bias of
+having searched for support; Section~\ref{sec:priorart} is the partial
+corrective, since it reports the work that anticipates part of the
+approach.
+
+\section{Floor plans as a source of structural data}
+
+Large vector floor-plan corpora are now openly available, and three are
+used here. CubiCasa5K \citep{kalervo2019cubicasa} contributes 5,000
+densely annotated plans as SVG polygons. Swiss Dwellings
+\citep{standfest2022swiss} contributes roughly 42,500 apartment models with
+walls stored as geo-referenced geometry, released under CC-BY-4.0 and
+quality assured to a median area deviation of 1.2 per cent. ResPlan
+\citep{abouagour2025resplan} contributes 17,000 residential plans in
+vector form with metric coordinates.
+
+Two further corpora were considered and rejected. RPLAN
+\citep{wu2019rplan} is the most cited residential corpus but is
+raster-first and oriented towards room semantics, so metric wall geometry
+would have to be recovered before anything structural could be said. MSD
+\citep{vanengelenburg2024msd} is derived from Swiss Dwellings and would
+have duplicated a source already present.
+
+Recovering geometry from drawings is itself a mature field. Liu and
+colleagues \citep{liu2017raster2vector} framed raster-to-vector conversion
+as junction prediction followed by integer programming, and Zeng and
+colleagues \citep{zeng2019deepfloorplan} improved wall and room
+recognition with a multi-task network. This work deliberately does not
+compete there: all three sources are consumed as vectors, so the parsing
+problem begins one step later, at walls to \emph{structural} grid rather
+than pixels to walls.
+
+\textbf{What this justifies.} The choice of three sources and the decision
+to work from vector geometry. \textbf{What it does not justify} is
+treating those corpora as structural ground truth, which
+Section~\ref{sec:labelgap} addresses.
+
+\section{Learned structural layout design}
+
+Three strands of work bear on this thesis, and they are not equally close
+to it.
+
+\subsection{Response prediction}
+
+The largest strand predicts structural behaviour from a design that
+already exists, usually by training a surrogate model on simulated
+results. Sun, Burton and Huang \citep{sun2021mlreview} survey the field
+and show that prediction and assessment dominate while proposing a layout
+is thinly covered. This thesis does not sit in that strand.
+
+M\'alaga-Chuquitaype \citep{malaga2022opinionated} is more pointed,
+arguing that the field has been readier to automate the parts of design
+engineers do not mind losing than the judgement they exercise, and warning
+against models asked to certify what they cannot explain. That warning
+shapes the division of labour adopted here: the learned components rank
+candidates and nothing more, and the reasoning that orders them is set out
+in closed form.
+
+\subsection{Generative structural design}
+
+Liao and colleagues \citep{liao2021shearwallgan} trained generative
+adversarial networks on real shear-wall design documents, parameterised by
+height and seismic category, and produced usable layouts. Lu and
+colleagues \citep{lu2022physicsgan} then embedded a physics estimator in
+the generator rather than trusting the data-driven discriminator alone.
+This strand is the strongest available evidence that structural layout
+\emph{is} learnable from real design data.
+
+Two limits matter here. The training documents are proprietary design
+archives rather than open data, so the work cannot be reproduced outside
+the group that holds them; and the task is shear-wall layout in Chinese
+residential practice rather than column-grid inference from an arbitrary
+architectural plan.
+
+\subsection{Column placement, and the closest prior art}
+\label{sec:priorart}
+
+The closest prior art is not a paper but a patent. Wang and Nourbakhsh at
+Autodesk \citep{wang2024columnrl}, filed October 2020 and granted March
+2024, claim a two-agent reinforcement learning system in which the first
+agent places grid lines so as to maximise overlap with load-bearing walls
+subject to minimum and maximum span, and the second places columns at grid
+crossings under rules marking locations as required, preferred, candidate
+or forbidden.
+
+That is the same decomposition used here: walls vote for grid lines, span
+limits bound the search, columns stand at crossings, and some crossings
+are excluded. The patent was found after the pipeline had been built and is
+reported rather than omitted. It is strong external evidence that the
+decomposition is the natural one, and it sharpens what remains to
+contribute, as Table~\ref{tab:patent} sets out.
+
+\begin{table}[H]
+\centering
+\caption[Comparison with the closest prior art]{Comparison with the
+closest prior art, US Patent 11,941,327 B2. The decomposition is conceded;
+the contribution lies in the ranking and its evaluation.}
+\label{tab:patent}
+\small
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+ & \textbf{US 11,941,327 B2} & \textbf{This work} \\
+\midrule
+Search & Two reinforcement learning agents & Enumeration over interior
+line subsets, with seeded sampling past a stated limit \\
+Ranking & Reward terms defined by the authors & Four rankers compared
+under one protocol, with the algorithm-only path retained as a baseline \\
+Data & Not disclosed & Two open corpora with derived labels, regenerable
+end to end, coordinates published \\
+Evaluation & Viability rules & Coverage reported first, then paired
+significance tests on held-out plans \\
+Reproducibility & Patent; no released code or data & Open notebooks and
+committed data tables \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Their treatment of ``required'' locations also justifies a decision taken
+in the parser: columns that the drawing itself marks are input that the
+generator must honour, not part of the answer to be predicted.
+
+\subsection{Column layouts from plans with neural networks}
+
+Ampanavos, Nourbakhsh and Cheng \citep{ampanavos2021approxiframer}
+published the closest work to this task: a convolutional network that
+generates column positions from plan sketches, trained on roughly 137,000
+synthetic rectangular frames and evaluated by positional error against
+synthetic labels. Their work removes any claim that predicting columns
+from plans with a neural network is new. It differs from this thesis on
+the two points that matter here: its labels are synthetic rather than
+derived from real buildings, and it generates a layout rather than ranking
+candidates.
+
+Pizarro and colleagues \citep{pizarro2021walls} predicted shear-wall
+layouts from architectural plans using convolutional and conditional
+generative models trained on 165 real Chilean projects. This is the
+nearest precedent for using real buildings as supervision, and it removes
+any claim that doing so is new. Its data is private, its subject is wall
+panels rather than columns, and it generates rather than ranks.
+
+\section{Topology optimisation, and why it is the wrong frame}
+
+Deep learning has been applied extensively to accelerate topology
+optimisation. Sosnovik and Oseledets \citep{sosnovik2019nn4topopt} treated
+the optimisation iteration as image-to-image translation; Yu and
+colleagues \citep{yu2019neartopo} removed the iteration altogether and
+predicted a near-optimal topology directly; and a recent review
+\citep{topopt2023review} maps the field.
+
+This is the closest neighbouring literature and it is the wrong tool for
+the present problem. Topology optimisation returns a density field over a
+continuum. A column grid is a discrete, dimensionally coordinated object
+that must be built, detailed and connected, and the operation that turns a
+density field into a buildable grid is precisely the difficult part, which
+the density formulation does not address. Enumerating discrete
+arrangements under span constraints keeps every candidate buildable by
+construction.
+
+\textbf{What this justifies} is the discrete generator of
+Section~\ref{sec:generator}. \textbf{What it costs} is scalability, which
+Section~\ref{sec:gap} returns to.
+
+\section{Screening cheaply and confirming expensively}
+
+The shape of this pipeline, in which many candidates are screened by a
+cheap model and few are examined closely, is not invented here. It is the
+standard structure of surrogate-assisted optimisation, surveyed by Jin
+\citep{jin2011surrogate}: use a cheap model to filter and spend the real
+evaluation budget on the survivors.
+
+What this thesis takes from that literature is the architecture, together
+with one deliberate departure from it. In surrogate-assisted optimisation
+the learned model sits \emph{inside} the search, standing in for an
+expensive evaluation. Here the algorithmic score and the learned judge are
+two \emph{independent} rankers of the same candidate set, combined by a
+blend whose weight is ablated, and compared against the score-only
+baseline. No published head-to-head comparison of that kind was found for
+building structural layout, which is why the contribution sits in the
+evaluation rather than in the search.
+
+Danhaive and Mueller \citep{danhaive2021subspace} supply the complementary
+argument: optimisation alone systematically misses the qualitative
+properties designers care about, which is why performance-conditioned
+exploration outperforms pure search. That is the case for the judges
+existing at all alongside a closed-form score.
+
+\section{How the learned components are set up}
+
+Four choices in the judges and in the learned score weights follow
+directly from established method.
+
+\textbf{Learning from constructed negative examples.} No dataset labels a
+layout as implausible, so the judges construct their negatives: real
+arrangements are the positive examples and altered copies of those same
+arrangements are the negatives. The method is noise contrastive estimation
+\citep{gutmann2010nce}, and naming it matters because it carries a
+warning: what the model learns is the boundary between the real data and
+\emph{the particular negatives that were constructed}. How the alteration
+is performed is therefore a design decision rather than an implementation
+detail, and Section~\ref{sec:negatives} shows what changed when that was
+taken seriously.
+
+\textbf{Ranking within a group.} The learned score weights are not fitted
+by asking whether an arrangement is real in isolation, but by asking which
+of several arrangements on one plan is the one that plan uses. That is
+learning to rank \citep{liu2009ltr}, in which a set of candidates belongs
+to a single query; here the plan is the query.
+
+\textbf{Splitting the data so the reported score is honest.} If rows are
+split at random, a plan's real arrangement can fall in the training set
+while an altered copy of it falls in the test set; the model then
+recognises the copy and scores well without having learned anything
+general. Ecologists encountered the same problem with spatially clustered
+samples, and Roberts and colleagues \citep{roberts2017cv} showed that
+random splits inflate scores and that data should be split by whatever the
+samples have in common. Kaufman and colleagues \citep{kaufman2012leakage}
+give the general name, leakage. Every model here is split by plan and the
+split is repeated over several seeds.
+
+\textbf{Choice of model.} Gradient boosting \citep{friedman2001gbm}, in
+its fast histogram form \citep{ke2017lightgbm}. On tables of a few
+thousand rows, tree ensembles still outperform neural networks
+\citep{grinsztajn2022tabular}, so declining to use deep learning for the
+tabular judge is an evidence-based decision rather than an omission. The
+implementation is scikit-learn \citep{pedregosa2011sklearn}.
+
+\section{What the industry cost evidence still justifies}
+
+Section~\ref{sec:removals} explained why the pricing was removed. The
+evidence that motivated it remains useful at a higher level of
+abstraction, because what it establishes is which geometric quantities
+drive cost \citep{aisc_cost}: that making and erecting steel is about
+seventy per cent of a steel package, and that connections drive thirty to
+fifty per cent of fabrication cost while contributing under five per cent
+of the weight. Member count, which scales with column count, is therefore
+a first-order driver, and columns standing away from walls incur
+disproportionate detailing effort. ISO 2848 \citep{iso2848} makes modular
+coordination a published standard, so repeated bay sizes are a real habit
+of real buildings and a real economy. UK guidance \citep{sci_grids}
+supplies the economical span band for offices, which sets the default span
+limits in the demonstration application.
+
+Each of those becomes one measure of the score in
+Section~\ref{sec:score}: the drivers are retained and the currency is
+discarded.
+
+\section{Quantum machine learning, and the limits of what can be claimed}
+
+\textbf{The model type is established.} Havl\'i\v{c}ek and colleagues
+\citep{havlicek2019} introduced both the variational classifier and the
+quantum kernel and ran them on hardware. Schuld and colleagues
+\citep{schuld2020circuit} defined the circuit-centric design this work
+starts from, and Schuld and Killoran
+\citep{schuld2019featurehilbert} explain why encoding a number as a
+rotation angle constitutes a feature map, which is why inputs are scaled
+into a bounded angle range. PennyLane \citep{bergholm2018pennylane} is the
+software. P\'erez-Salinas and colleagues
+\citep{perezsalinas2020reupload} showed that feeding the data into the
+circuit again at every layer makes a small circuit considerably more
+expressive, and both architectures are tested here.
+
+\textbf{The limits are equally established and set the size of the
+circuit.} McClean and colleagues \citep{mcclean2018barren} showed that for
+many circuit designs the training signal vanishes exponentially as qubits
+are added, which is why this work stays small. Huang and colleagues
+\citep{huang2021powerdata} showed that classical models with data are
+competitive even on problems constructed to favour quantum ones. Bowles,
+Ahmed and Schuld \citep{bowles2024benchmark} tested twelve quantum models
+across 160 datasets, found classical models generally ahead, and set the
+standard of fairness this work follows: identical rows, identical
+features, identical splits, with classical baselines run on the same data.
+
+\textbf{The nearest applications are not design.} Quantum machine learning
+has reached structural engineering as post-earthquake safety
+classification. Bhatta and Dang \citep{bhatta2024quantum} train a
+variational quantum classifier on tabular building and demand features and
+compare it against ten classical models on identical data. That is the
+closest quantum work to this thesis, and the reason the novelty claim in
+Section~\ref{sec:contribution} is worded as design-stage arrangement
+plausibility rather than as quantum learning applied to buildings.
+Elsewhere, quantum treatment of structural geometry exists as
+annealing-based truss optimisation and as eigenvalue analysis, and a
+review of the field \citep{ploennigs2026quantumcivil} records no
+application to design-stage layout.
+
+\section{Judging the same layout two ways}
+
+Comparisons of representation exist for \emph{generative} models, and
+comparisons of tabular models against convolutional networks exist for
+floor plans in the prediction of rent rather than plausibility. Van
+Engelenburg and colleagues \citep{vanengelenburg2023ssig} propose a
+non-learned metric for floor-plan similarity and benchmark it against deep
+metric learning, which is the nearest heuristic-versus-learned comparison
+on this kind of data, though the task is retrieval rather than
+plausibility.
+
+Evaluation of generated structural layouts exists in several forms. Wang
+and colleagues \citep{wang2025experteval} represent the state of the art
+in selecting among candidate structural layouts: an expert-weighted
+evaluation of automatically generated shear-wall schemes combined with
+automated finite-element analysis. Its evaluator applies expert-assigned
+weights rather than a model learned from data, and no learned judge is
+compared against that evaluator on the same candidates. Outside the
+construction domain, the recipe of real examples as positives and
+perturbed examples as negatives is established for judging object
+placement in images \citep{liu2024diffpop}.
+
+\section{The gap}
+\label{sec:gap}
+\label{sec:labelgap}
+
+The general form of the claim is false: it is not true that structural
+layout has never been learned from real data, since
+\citet{liao2021shearwallgan} and \citet{pizarro2021walls} have done so.
+The claim that survives the evidence is narrower and has four parts.
+
+\begin{enumerate}
+\item \textbf{Open architectural collections have not been used as
+structural training data.} They are large, free and reproducible, and they
+are used for room-layout research. Learned structural design uses private
+archives or geometry generated for the purpose.
+
+\item \textbf{The problem of obtaining column-layout labels has not been
+solved publicly.} Architectural drawings do not record a column layout, so
+anyone learning columns from plans must generate the answer synthetically
+\citep{ampanavos2021approxiframer}, hold a private engineering archive
+\citep{pizarro2021walls}, or derive a label. No derivation, with its
+assumptions and their sensitivity, has been published for the open
+corpora. Chapter~\ref{ch:method} is this work's answer, and its 160\,mm
+threshold is varied rather than asserted.
+
+\item \textbf{Candidate rankers are not compared with one another.}
+Generated or enumerated layouts are evaluated by rules, by finite-element
+analysis, or by expert weighting \citep{wang2025experteval}, but no study
+was found that ranks one fixed candidate set with both an algorithmic
+score and independent learned judges and reports whether the judges
+improve on the score alone. The four-variant protocol is this work's
+answer.
+
+\item \textbf{Exhaustive checking does not scale, and no remedy is
+established.} Exhaustive search is exact on simple plans and infeasible on
+heavily subdivided ones. Sampling beyond a stated limit is a mitigation
+rather than a solution, and the generative literature scales but does not
+produce buildable grids.
+\end{enumerate}
+
+Items 1, 2 and 3 are where this thesis contributes. Item 4 remains open
+and is presented as such.
+
+One further caveat belongs with the novelty claim. It rests in part on
+absence of evidence: searches across several databases found no comparable
+study, but no search establishes that none exists. The claim is therefore
+worded so that a single counter-example would falsify it, and the works
+named in this chapter are those that would come closest to providing one.

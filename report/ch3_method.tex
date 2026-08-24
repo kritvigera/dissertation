@@ -1,0 +1,402 @@
+\chapter{Methodology}
+\label{ch:method}
+
+This chapter describes how the corpus was built, how the labels were
+derived, how candidate arrangements are generated, and how they are
+scored. The models that consume those candidates are the subject of
+Chapter~\ref{ch:models}.
+
+\section{The corpus}
+\label{sec:corpus}
+
+Three public floor-plan datasets, each in a different native format, are
+converted into one representation: a column arrangement and about twenty
+geometric measurements per plan. Table~\ref{tab:corpus} gives the
+composition.
+
+\begin{table}[H]
+\centering
+\caption[Corpus composition]{Corpus composition. Median columns and median
+regularity are computed after the labelling procedure of
+Section~\ref{sec:labels}. ResPlan carries no per-wall thickness, so it
+cannot take that procedure and is retained for descriptive purposes only.}
+\label{tab:corpus}
+\small
+\input{tables/corpus}
+\end{table}
+
+The three sources are drawn in three different unit systems, and no
+reliable conversion exists between them: Swiss Dwellings is in metres,
+CubiCasa5K in drawing pixels of unrecoverable scale, and ResPlan in units
+that appear to be decimetres. That single fact constrains the entire
+design downstream. Absolute measurements can be compared only within a
+source, so anything that crosses sources must use either measurements
+that are independent of scale, as the feature judge does, or a
+representation in which scale has been normalised away, as the image judge
+does.
+
+\subsection{Conversion}
+
+Each dataset loader yields a plan identifier and its geometry, and one
+conversion routine performs the rest:
+
+\begin{enumerate}
+\item rotate the plan so that its dominant wall direction is horizontal,
+since Swiss plans are drawn at arbitrary angles;
+\item reduce each wall polygon to a centre line and a thickness;
+\item apply the load-bearing threshold, then group the surviving wall
+positions into grid lines, weighting each wall by its length and
+expressing tolerances as a fraction of plan size;
+\item place a column at every crossing contained by a load-bearing wall,
+then add the columns the drawing marks;
+\item hash the arrangement after translating it to the origin, so that
+identical layouts drawn in different places collapse to one entry;
+\item compute the geometric measurements.
+\end{enumerate}
+
+Only walls within ten degrees of an axis contribute to step 3. A wall at a
+genuine angle is not straightened by any rotation, and forcing it into the
+grouping would place a grid line where no wall exists. Such walls are
+handled separately in the parser, as Section~\ref{sec:parser} describes.
+
+\section{Deriving the labels}
+\label{sec:labels}
+
+An architectural drawing does not record a structural column layout. Since
+accuracy cannot be measured without one, this work derives a label by a
+stated procedure:
+
+\begin{enumerate}
+\item \textbf{Discard every wall thinner than 160\,mm.} This is the
+minimum thickness for a two-hour fire rating, so thinner walls are treated
+as room dividers rather than primary structure.
+\item \textbf{Build the grid from the surviving walls only.} A structural
+grid should follow structural elements; using every wall places grid lines
+at room spacing rather than at structural spacing.
+\item \textbf{Place a column at every grid crossing that lies inside one of
+those walls.} The containment test uses each wall's start point, end point
+and thickness, so a short wall claims only the crossings it actually
+reaches. Testing the grid line alone would allow a stub wall at one end of
+a building to claim crossings at the other.
+\item \textbf{Add every column the drawing marks explicitly}, whether or
+not it falls inside a wall.
+\end{enumerate}
+
+\subsection{What the result represents}
+
+Steps 1 to 3 produce an \emph{equivalent-frame idealisation of a
+wall-bearing structure}: a column layout that stands in for the wall
+system it replaces. These buildings do not have a column grid waiting to
+be recovered.
+
+Badoux and Peter, surveying more than fifty Swiss buildings from original
+construction drawings, report that in the dominant Swiss apartment type
+the partition walls \emph{are} the structural bearing walls and that
+frame-type structural systems are the exception. The corpus agrees: its
+ratio of wall area to floor area is about 24 per cent, against roughly 15
+per cent for shear-wall buildings and 8 per cent for concrete-frame
+buildings in published surveys. Because nearly every wall carries load,
+the 160\,mm threshold selects the \emph{primary} walls rather than
+separating structure from non-structure.
+
+Only step 4 is observed. Everything else is a modelling decision, and this
+report is explicit about the distinction wherever a result depends on it.
+
+\subsection{The threshold, and its sensitivity}
+
+The 160\,mm value sits inside a narrow band of published figures. Eurocode
+2 gives 140\,mm as the minimum for a reinforced load-bearing wall; Badoux
+and Peter report 140\,mm as the thinnest concrete wall found in the Swiss
+stock; the DISCS building inventory places its tenth percentile at 140 to
+150\,mm across 102 Swiss buildings and its median structural wall at
+200\,mm. The value used, 160\,mm, is the two-hour fire-rating minimum.
+
+The measured thicknesses validate externally against that inventory: a
+median of 190\,mm against DISCS's 200\,mm, and a seventy-fifth percentile
+of 291\,mm against their 300\,mm. The additional mass below 150\,mm in
+this corpus is the partition population that DISCS excludes by design,
+since it inventories only load-bearing and insulating layers.
+
+Because every downstream figure depends on this one number, the labels are
+re-derived at 140, 160, 180 and 200\,mm. Table~\ref{tab:thresholdcorpus}
+gives the effect at corpus level, and Section~\ref{sec:sensitivity}
+carries it through to accuracy.
+
+\begin{table}[H]
+\centering
+\caption[Effect of the load-bearing threshold on the corpus]{Effect of the
+load-bearing threshold on the corpus, Swiss Dwellings. Raising the
+threshold admits fewer walls, so fewer plans yield a usable label and the
+labels that survive are sparser.}
+\label{tab:thresholdcorpus}
+\small
+\input{tables/threshold_corpus}
+\end{table}
+
+\subsection{What each source supports}
+
+\textbf{Swiss Dwellings} is drawn in metres and stores walls as polygons,
+so thickness is measurable and the threshold applies as written. It also
+marks columns explicitly, supplying step 4. This is the only source where
+the procedure works exactly as specified, and it is the source from which
+all evaluation plans are drawn.
+
+\textbf{CubiCasa5K} also stores walls as polygons, but in drawing pixels
+with no recoverable real-world scale, so an absolute threshold in
+millimetres is meaningless. It instead retains the thickest walls of each
+plan by proportion. This is a genuine weakness and is why those plans
+carry a different confidence label. Recovering scale from standard door
+widths would resolve it and is left as further work.
+
+\textbf{ResPlan} supports neither step 1 nor step 4: it declares one wall
+depth for a whole plan, so there is no per-wall thickness to filter on, and
+it marks no columns. Its plans remain on an earlier every-crossing
+procedure, are labelled accordingly, and are excluded from every training
+set. They remain useful for descriptive statistics and for exercising the
+parser against a third drawing convention.
+
+\subsection{Published artefacts}
+
+Earlier revisions of this work retained only summary measurements and grid
+lines, which meant the labels themselves were unavailable and neither the
+judges nor the accuracy protocol could be constructed. The regeneration
+script now publishes the ground-truth column coordinates of every labelled
+plan and its load-bearing walls with thicknesses, and validates its output
+against the previously committed tables before overwriting them. On the
+most recent run the regenerated Swiss plans matched on all 8,260 shared
+identifiers, with grid-line counts and regularity identical, and CubiCasa
+matched on all 4,205.
+
+\section{What the corpus looks like}
+\label{sec:eda}
+
+Two properties of the corpus govern what any learned component can
+achieve.
+
+\textbf{Building the grid from load-bearing walls only was the most
+consequential change made to this pipeline.} Under an earlier procedure
+that placed a column at every wall crossing, plans yielded a median of 84
+to 130 candidate columns, where a structural grid for a dwelling is nearer
+20 to 40, because every internal partition contributed a grid line. With
+the grid built from load-bearing walls, the median falls to 40 for Swiss
+and 11 for CubiCasa, and the proportion of plans with more than 100
+columns falls from 71 to 9 per cent for Swiss and from 33 to 0.1 per cent
+for CubiCasa.
+
+\textbf{Real plans are irregular.} Regularity, defined so that it equals 1
+when every bay is the same size and falls towards 0 as bay sizes diverge,
+has a median of 0.34 to 0.47 across the three sources.
+Figure~\ref{fig:regularity} shows the distributions. Published synthetic
+training grids score far higher, and the consequence was measured
+directly: a classifier trained only on synthetic arrangements scored 0.57
+ROC AUC on real ones, where 0.5 is chance. That single figure is why every
+learned component in this work trains on the real corpus.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{03_regularity}
+\caption[Regularity of real plans by source]{Regularity of real plans by
+source. Values approach 1 when every structural bay is the same size. The
+median lies between 0.34 and 0.47, far below the uniform grids used in
+published synthetic training sets, which is why models trained on
+synthetic layouts transfer poorly to real ones.}
+\label{fig:regularity}
+\end{figure}
+
+Swiss Dwellings is the most regular source at 0.468, consistent with its
+being multi-storey apartment blocks, which makes it the closest available
+proxy for the commercial frames this pipeline ultimately targets.
+
+\section{The parser}
+\label{sec:parser}
+
+The parser converts wall segments into a structural grid and a set of
+candidate column positions. Each wall votes for a grid line: a wall
+running vertically votes for a vertical line at its midpoint, weighted by
+its length, and a horizontal wall votes correspondingly. Votes closer
+together than a merge tolerance are combined into one line positioned at
+the length-weighted average of its members. Candidate positions are the
+crossings of the surviving lines. User constraints may exclude regions of
+the plan, marking the crossings inside them unavailable.
+
+Where the input records a thickness for each wall, only walls at or above
+the load-bearing threshold may vote, and every crossing is tested for
+whether it lies physically inside such a wall using that wall's own
+thickness. This is the same test that produced the labels in
+Section~\ref{sec:labels}.
+
+That alignment is deliberate and it determines whether the evaluation
+means anything. If the parser interpreted walls differently from the
+labelling procedure, the correct arrangement could never appear among the
+candidates, and every accuracy figure would measure the disagreement
+between two parsers rather than the quality of any variant. Achieving
+alignment required matching the labelling procedure in four respects:
+midpoint votes, weighting by the wall's length component along its own
+axis, a merge tolerance of 1.5 per cent of the plan extent, and silence
+from walls shorter than 5 per cent of the plan. With those in place the
+correct arrangement is reachable on all seven evaluation plans, as
+Section~\ref{sec:coverage} reports.
+
+Figure~\ref{fig:parsed} shows a parsed plan. Columns that the drawing
+itself marks are treated as input rather than as part of the answer: the
+parser records them and the generator retains them in every candidate.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{04_parsed_dwelling}
+\caption[A parsed plan]{A held-out dwelling after parsing. Grey lines are
+wall centre lines; pale blue lines are the grid the load-bearing walls
+imply. Dark markers are crossings that lie inside a load-bearing wall and
+are therefore candidate column positions under the wall-based placement
+rule; pale markers are crossings that do not.}
+\label{fig:parsed}
+\end{figure}
+
+\section{The generator}
+\label{sec:generator}
+
+A candidate arrangement is a choice of grid lines together with a rule for
+which crossings receive a column. The outermost line on each axis is
+always retained, and any subset of the interior lines is permitted
+provided every resulting bay width falls within the user's minimum and
+maximum span. Crossings excluded by constraint are removed, and such a
+removal is allowed only if the neighbouring columns can still span the
+resulting gap.
+
+Two placement rules are applied to each surviving set of lines. The
+\emph{lattice} rule places a column at every available crossing, which is
+the classic frame answer. The \emph{walls} rule places a column only at
+crossings inside a load-bearing wall, which reproduces the procedure that
+generated the labels. The second rule is available only where wall
+thicknesses are known, and without it the correct arrangement would not be
+among the candidates at all.
+
+\subsection{Sampling large search spaces}
+
+The number of line subsets grows exponentially with the number of interior
+lines, as Figure~\ref{fig:searchspace} shows, so the space of candidate
+pairs cannot always be enumerated in full. Where it exceeds the configured
+limit the generator draws a random sample of the pairs using a fixed seed,
+always including the pair that retains every line, which is where the
+correct arrangement lies.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.72\textwidth]{05_search_space}
+\caption[Growth of the candidate space]{Growth of the candidate space with
+the number of interior grid lines on one axis, logarithmic vertical scale.
+Exhaustive enumeration is feasible for simple plans and infeasible for
+heavily subdivided ones, which is why the generator samples beyond a
+stated limit.}
+\label{fig:searchspace}
+\end{figure}
+
+Sampling rather than truncating matters. Stopping at the limit would fill
+the candidate set with near-identical dense grids and silently discard the
+sparse end of the space; a sample keeps the set representative, and the
+fixed seed makes it reproducible. Sampling reduces coverage without
+restoring exhaustiveness, and that is stated as a limitation rather than
+presented as a solution. At the default limit of 4,000 candidates the
+seven evaluation plans produce between 512 and 4,000 candidates each.
+
+\section{The score}
+\label{sec:score}
+
+Each candidate receives a single number, the penalty, computed from the
+geometry of the arrangement and of the plan. Lower is better. The penalty
+contains no member sizes, no load values, no prices and no units:
+\begin{equation}
+\text{penalty} = \sum_{i} w_i \, z(t_i),
+\label{eq:penalty}
+\end{equation}
+where the $t_i$ are the five measures below, $z$ is a robust
+standardisation within the candidate set of one plan, and the weights
+$w_i$ are the function's only free parameters.
+
+\subsection{The five measures}
+
+Each measure is dimensionless and each increases as the arrangement gets
+worse.
+
+\begin{description}[style=unboxed,leftmargin=0pt]
+\item[Density, $t_\mathrm{density}$.] Column count divided by floor area.
+A proxy for the quantity of vertical structure and the number of
+foundations, without pricing either. Replaces the material cost.
+
+\item[Span demand, $t_\mathrm{span}$.] The sum over beam runs of
+$s^2 b$, where $s$ is the span and $b$ the width of floor that run
+supports, normalised by a footprint term. The bending a beam must resist
+is proportional to $wL^2/8$ per unit of supported width; removing the
+constant of proportionality, which is identical for every candidate,
+leaves a quantity that still orders arrangements by structural demand
+while requiring no load value and no steel section. This is the direct
+replacement for the deleted member sizing, and the physics is preserved
+exactly up to that constant. Spans are measured between the actual columns
+on each grid line, so a sparse line with a long unsupported run is charged
+for it.
+
+\item[Irregularity, $t_\mathrm{irreg}$.] The variability of bay sizes in
+each direction, summed. Regular grids give predictable load paths and
+repeated details, and grid regularity is the standard early-stage measure
+of layout quality.
+
+\item[Off-wall fraction, $t_\mathrm{offwall}$.] The fraction of columns
+not lying inside a wall. Columns away from walls intrude on the
+architecture and require non-standard detailing. This is the only measure
+that reads the architectural plan rather than the abstract grid, and it
+uses the same containment test as the labelling procedure so that training
+and use agree.
+
+\item[Repetition, $t_\mathrm{rep}$.] The number of distinct bay sizes
+divided by the number of bays, where sizes within 5 per cent of the mean
+count as the same. Repeated bays mean repeated formwork and simpler
+procurement, which is a buildability argument that survives the loss of a
+section catalogue.
+\end{description}
+
+\subsection{Normalisation}
+
+Each measure is converted to a robust standard score within the candidate
+set of one plan: the value minus the median, divided by the interquartile
+range, with a scaled median-absolute-deviation fallback when that range
+degenerates. Scaling between the minimum and maximum was rejected because
+a single extreme candidate would rescale every other score, making the
+result depend on how many candidates happened to be generated. The median
+and interquartile range are unaffected by values outside the central half
+of the set.
+
+\subsection{Obtaining the weights}
+\label{sec:weights}
+
+The weights are the only free parameters, and both of the following are
+carried through the evaluation.
+
+\textbf{Fixed weights} set every $w_i$ to one. Equal weighting is the
+deliberate choice in the absence of any argued basis for preferring one
+measure over another, and its justification is empirical rather than
+rhetorical: Section~\ref{sec:sensitivity} perturbs each weight by
+$\pm 50$ per cent and removes each measure in turn, and reports the
+resulting change in the ranking. A weight vector that cannot be argued for
+is acceptable precisely when the ranking can be shown to be insensitive to
+it.
+
+\textbf{Learned weights} are fitted by ranking. For each of 11,098 plans
+the real derived arrangement is the positive example, and up to five
+alternatives generated on that same plan's grid are the negatives: the
+full set of crossings, and subsets of the grid lines under both placement
+rules. This yields 52,724 paired comparisons. A logistic model without an
+intercept is fitted to the differences between the normalised measures, so
+that because the model is linear in those differences its coefficients
+\emph{are} the weights.
+
+Two other formulations were considered and rejected as unsound. Fitting a
+model to reproduce the fixed score's output would be circular, since the
+learned score would be a copy of the thing it is meant to be compared
+against. Training on the judges' real-versus-altered examples would make
+the learned score and the judge the same model applied twice, so that
+comparing the pipeline with and without a judge would measure nothing.
+
+One overlap is stated rather than argued away: the alternatives used here
+and the altered examples used by the judges both include arrangements that
+place columns at every crossing. The two sets of examples are otherwise
+distinct.

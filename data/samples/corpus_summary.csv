@@ -1,0 +1,4 @@
+source,arrangements,median_columns,median_lines_x,median_lines_y,median_regularity,median_interior_ratio
+CubiCasa,4979,84.0,10.0,9.0,0.408,0.604
+ResPlan,16821,120.0,11.0,10.0,0.341,0.667
+Swiss,8580,130.0,12.0,12.0,0.468,0.667

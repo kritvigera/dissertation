@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Structural arrangement pipeline</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2430; --muted: #64707f;
+    --line: #dfe4ea; --accent: #2563eb; --warn: #c2410c; --ok: #15803d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header { padding: 18px 24px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 19px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: 320px 1fr; gap: 18px; padding: 18px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .panel h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  label { display: block; margin: 12px 0 4px; font-size: 13px; color: var(--muted); }
+  select, input[type=number] { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: #fff; color: var(--ink); }
+  input[type=range] { width: 100%; }
+  .val { float: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; color: var(--ink); }
+  button { margin-top: 16px; width: 100%; padding: 10px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { background: #9db4e8; cursor: default; }
+  .funnel { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .step { flex: 1 1 90px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .step b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .step span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .cards { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 0; }
+  .card { flex: 1 1 120px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .card b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .card span { font-size: 11px; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+  th { text-align: right; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); font-size: 11px; text-transform: uppercase; }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 6px 8px; border-bottom: 1px solid #f0f2f5; font-variant-numeric: tabular-nums; }
+  tr.winner td { background: #e7f6ec; font-weight: 600; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .error { color: var(--warn); font-size: 13px; margin-top: 10px; }
+  svg { width: 100%; height: auto; display: block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Structural arrangement pipeline</h1>
+  <p>Change the inputs on the left. The pipeline reruns and the answer updates:
+     walls to grid lines, grid lines to candidate layouts, a dimensionless
+     geometric score, then (in variants V1, V2 and V4) a learned judge over the
+     top fifteen. There are no prices and no member sizes anywhere: the
+     ranking uses geometry alone. Inclined walls are drawn in orange, and a
+     column placed where a grid line crosses one is an orange diamond.</p>
+</header>
+
+<main>
+  <div class="panel">
+    <h2>Inputs</h2>
+
+    <label for="plan">Floor plan</label>
+    <select id="plan">
+      <option value="sample">Sample office, 36 x 24 m</option>
+      <option value="dxf">Same plan read from DXF</option>
+      <option value="skew">Office with inclined walls, 36 x 24 m</option>
+      <option value="demo_01">Held-out Swiss dwelling 1</option>
+      <option value="demo_02">Held-out Swiss dwelling 2</option>
+      <option value="demo_03">Held-out Swiss dwelling 3</option>
+      <option value="demo_04">Held-out Swiss dwelling 4</option>
+      <option value="demo_05">Held-out Swiss dwelling 5</option>
+      <option value="demo_06">Held-out Swiss dwelling 6</option>
+      <option value="demo_07">Held-out Swiss dwelling 7</option>
+    </select>
+
+    <label for="variant">Variant</label>
+    <select id="variant"></select>
+
+    <label for="scoreMode">Score weights</label>
+    <select id="scoreMode"></select>
+
+    <label for="stories">Storeys <span class="val" id="storiesVal">6</span></label>
+    <input type="range" id="stories" min="1" max="20" step="1" value="6">
+
+    <div class="row">
+      <div>
+        <label for="minSpan">Minimum span (m)</label>
+        <input type="number" id="minSpan" value="6" step="0.5" min="0.1">
+      </div>
+      <div>
+        <label for="maxSpan">Maximum span (m)</label>
+        <input type="number" id="maxSpan" value="12" step="0.5" min="0.5">
+      </div>
+    </div>
+
+    <label for="mergeTol">Wall merge tolerance (m) <span class="val" id="mergeTolVal">0.6</span></label>
+    <input type="range" id="mergeTol" min="0.1" max="3" step="0.1" value="0.6">
+
+    <label for="lambda">Weight on the judge (&lambda;) <span class="val" id="lambdaVal">0.30</span></label>
+    <input type="range" id="lambda" min="0" max="1.5" step="0.05" value="0.3">
+
+    <div class="check">
+      <input type="checkbox" id="atrium" checked>
+      <label for="atrium" style="margin:0">Keep the atrium free of columns
+        <span style="color:#64707f">(sample plan only)</span></label>
+    </div>
+
+    <button id="run">Run the pipeline</button>
+    <p class="note" id="status">Ready.</p>
+  </div>
+
+  <div>
+    <div class="funnel" id="funnel"></div>
+
+    <div class="panel">
+      <h2>Chosen arrangement</h2>
+      <svg id="plot" viewBox="0 0 640 420" role="img" aria-label="Floor plan with the chosen columns"></svg>
+      <div class="cards" id="cards"></div>
+      <p class="error" id="error"></p>
+    </div>
+
+    <div class="panel" style="margin-top:18px">
+      <h2>Shortlist</h2>
+      <table id="table">
+        <thead><tr>
+          <th>Layout</th><th>Columns</th><th>Placement</th><th>Penalty</th><th>Judge</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="note" id="tableNote">
+        Rows are in the variant's final order, best first. Penalty is the
+        dimensionless score, where lower is better, and Judge is the learned
+        plausibility of the arrangement. Variant V3 has no judge.
+      </p>
+    </div>
+
+    <div class="panel" style="margin-top:18px">
+      <h2>Why the winner won: the five score terms</h2>
+      <svg id="terms" viewBox="0 0 640 220" role="img" aria-label="Score terms of the winning arrangement"></svg>
+      <p class="note">
+        Each bar is one term of the winner's score, normalised within this
+        candidate set (0 is the median candidate; negative is better than the
+        median). density = columns per floor area; span demand = span&sup2; times
+        tributary width, the load-free bending index; irregularity = spread of
+        the bay sizes; off-wall = columns landing outside walls; repetition =
+        distinct bay sizes. The weights on these five terms are the score
+        function's only free parameters.
+      </p>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const SVGNS = "http://www.w3.org/2000/svg";
+let latest = null;
+
+function el(tag, attrs) {
+  const node = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) node.setAttribute(k, attrs[k]);
+  return node;
+}
+
+// ---- gather the form into a request body -------------------------------
+function request() {
+  const demo = $("plan").value.startsWith("demo");
+  return {
+    plan: $("plan").value,
+    variant: $("variant").value || "V1",
+    score_mode: $("scoreMode").value || "algo",
+    n_stories: +$("stories").value,
+    min_span: +$("minSpan").value,
+    max_span: +$("maxSpan").value,
+    merge_tol: demo ? "auto" : +$("mergeTol").value,
+    lambda_blend: +$("lambda").value,
+    column_free_zones: (!demo && $("atrium").checked) ? [[15, 9, 21, 15]] : []
+  };
+}
+
+// ---- draw the plan, the grid and the chosen columns ---------------------
+function drawPlan(data) {
+  const svg = $("plot");
+  svg.textContent = "";
+  const W = 640, H = 420, pad = 30;
+  const walls = data.grid.walls;
+  const xs = walls.flatMap(w => [w[0], w[2]]);
+  const ys = walls.flatMap(w => [w[1], w[3]]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const s = Math.min((W - 2 * pad) / (maxX - minX || 1),
+                     (H - 2 * pad) / (maxY - minY || 1));
+  const ox = (W - (maxX - minX) * s) / 2, oy = (H - (maxY - minY) * s) / 2;
+  const X = x => ox + (x - minX) * s;
+  const Y = y => H - oy - (y - minY) * s;      // flip so up is up
+
+  if (data.best) {
+    for (const x of data.best.x_lines)
+      svg.appendChild(el("line", {x1: X(x), y1: Y(minY), x2: X(x), y2: Y(maxY),
+                                  stroke: "#c7d2fe", "stroke-width": 1}));
+    for (const y of data.best.y_lines)
+      svg.appendChild(el("line", {x1: X(minX), y1: Y(y), x2: X(maxX), y2: Y(y),
+                                  stroke: "#c7d2fe", "stroke-width": 1}));
+  }
+  const skewWalls = data.grid.skew_walls || [];
+  const isSkew = w => skewWalls.some(s =>
+    Math.abs(s[0] - w[0]) < 1e-6 && Math.abs(s[1] - w[1]) < 1e-6 &&
+    Math.abs(s[2] - w[2]) < 1e-6 && Math.abs(s[3] - w[3]) < 1e-6);
+  for (const w of walls)
+    svg.appendChild(el("line", {x1: X(w[0]), y1: Y(w[1]), x2: X(w[2]), y2: Y(w[3]),
+                                stroke: isSkew(w) ? "#ea7317" : "#9aa5b1",
+                                "stroke-width": isSkew(w) ? 3.5 : 2.5,
+                                "stroke-linecap": "round"}));
+  data.grid.nodes.forEach((n, i) => {
+    if (data.grid.blocked[i])
+      svg.appendChild(el("circle", {cx: X(n[0]), cy: Y(n[1]), r: 5,
+                                    fill: "none", stroke: "#c2410c", "stroke-width": 1.5}));
+    else
+      svg.appendChild(el("circle", {cx: X(n[0]), cy: Y(n[1]), r: 2.5, fill: "#cbd5e1"}));
+  });
+  for (const s of (data.grid.skew_nodes || []))
+    svg.appendChild(el("circle", {cx: X(s[0]), cy: Y(s[1]), r: 5, fill: "none",
+                                  stroke: "#ea7317", "stroke-width": 1.5}));
+  if (data.best) {
+    for (const c of data.best.columns) {
+      const r = 5;
+      svg.appendChild(el("rect", {x: X(c[0]) - r, y: Y(c[1]) - r, width: 2 * r,
+                                  height: 2 * r, fill: "#1c2430", rx: 1}));
+    }
+    for (const c of (data.best.skew_columns || [])) {
+      const r = 6.5, cx = X(c[0]), cy = Y(c[1]);
+      svg.appendChild(el("polygon", {
+        points: `${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}`,
+        fill: "#ea7317", stroke: "#1c2430", "stroke-width": 1}));
+    }
+  }
+}
+
+// ---- the five score terms of the winner ----------------------------------
+const TERM_LABELS = {
+  t_density: "density", t_span_demand: "span demand",
+  t_irregularity: "irregularity", t_off_wall: "off-wall",
+  t_repetition: "repetition"
+};
+
+function drawTerms(data) {
+  const svg = $("terms");
+  svg.textContent = "";
+  if (!data.best || !data.best.z_terms) return;
+  const entries = Object.entries(data.best.z_terms);
+  const W = 640, H = 220, pad = 40;
+  const zero = H / 2;
+  const zs = entries.map(e => e[1]);
+  const zmax = Math.max(1, ...zs.map(Math.abs));
+  const bw = (W - 2 * pad) / entries.length;
+  svg.appendChild(el("line", {x1: pad, y1: zero, x2: W - pad, y2: zero,
+                              stroke: "#dfe4ea"}));
+  entries.forEach(([k, v], i) => {
+    const h = Math.abs(v) / zmax * (H / 2 - pad);
+    const y = v < 0 ? zero : zero - h;
+    svg.appendChild(el("rect", {x: pad + i * bw + bw * 0.15,
+                                y: v < 0 ? zero : zero - h,
+                                width: bw * 0.7, height: Math.max(h, 1),
+                                fill: v <= 0 ? "#15803d" : "#c2410c",
+                                transform: v < 0 ? "" : ""}));
+    if (v < 0) {
+      // redraw below the axis
+      svg.lastChild.setAttribute("y", zero);
+    }
+    const t = el("text", {x: pad + i * bw + bw / 2, y: H - 12,
+                          "text-anchor": "middle", "font-size": 11,
+                          fill: "#64707f"});
+    t.textContent = TERM_LABELS[k] || k;
+    svg.appendChild(t);
+    const val = el("text", {x: pad + i * bw + bw / 2,
+                            y: v < 0 ? zero + h + 14 : zero - h - 6,
+                            "text-anchor": "middle", "font-size": 11,
+                            fill: "#1c2430"});
+    val.textContent = v.toFixed(2);
+    svg.appendChild(val);
+  });
+}
+
+// ---- the numbers around the drawing ------------------------------------
+function drawSummary(data) {
+  const f = data.funnel;
+  $("funnel").innerHTML = [
+    [f.candidates, "candidate columns"],
+    [f.arrangements, "buildable layouts"],
+    [f.shortlist, "shortlisted"],
+    [f.best, "chosen"]
+  ].map(([n, t]) => `<div class="step"><b>${n}</b><span>${t}</span></div>`).join("");
+
+  const b = data.best;
+  const judged = b.plausibility != null;
+  $("cards").innerHTML = [
+    [data.variant + " / " + data.score_mode, "variant / weights"],
+    [b.n_columns, "columns per storey"],
+    [b.penalty.toFixed(2), "score penalty (lower is better)"],
+    [judged ? (b.plausibility * 100).toFixed(0) + "%" : "no judge",
+     "judge plausibility"],
+    [b.placement, "placement policy"],
+    [(data.timings.total * 1000).toFixed(0) + " ms", "time to run"]
+  ].map(([v, t]) => `<div class="card"><b>${v}</b><span>${t}</span></div>`).join("");
+
+  $("table").tBodies[0].innerHTML = data.shortlist.map(r => {
+    const cls = r.winner ? "winner" : "";
+    const judge = r.plausibility != null
+      ? (r.plausibility * 100).toFixed(0) + "%" : "-";
+    return `<tr class="${cls}"><td>#${r.id}</td><td>${r.n_columns}</td>`
+      + `<td>${r.placement}</td><td>${r.penalty.toFixed(2)}</td>`
+      + `<td>${judge}</td></tr>`;
+  }).join("");
+}
+
+// ---- talk to the server ------------------------------------------------
+async function run() {
+  $("run").disabled = true;
+  $("status").textContent = "running ...";
+  $("error").textContent = "";
+  try {
+    const res = await fetch("/api/run", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(request())
+    });
+    const data = await res.json();
+    latest = data;
+    if (!data.ok) {
+      $("error").textContent = data.message;
+      $("status").textContent = "no answer for those settings";
+      if (data.grid) drawPlan(data);
+      return;
+    }
+    drawPlan(data);
+    drawSummary(data);
+    drawTerms(data);
+    $("status").textContent = "done in " + (data.timings.total * 1000).toFixed(0) + " ms";
+  } catch (err) {
+    $("error").textContent = "Could not reach the server. Is app.py still running?";
+    $("status").textContent = "failed";
+  } finally {
+    $("run").disabled = false;
+  }
+}
+
+// ---- wire the controls up, with a small delay so dragging feels live ----
+let timer = null;
+function schedule() { clearTimeout(timer); timer = setTimeout(run, 250); }
+
+$("stories").addEventListener("input", e => {
+  $("storiesVal").textContent = e.target.value; schedule();
+});
+$("mergeTol").addEventListener("input", e => {
+  $("mergeTolVal").textContent = (+e.target.value).toFixed(1); schedule();
+});
+$("lambda").addEventListener("input", e => {
+  $("lambdaVal").textContent = (+e.target.value).toFixed(2); schedule();
+});
+$("plan").addEventListener("change", () => {
+  // dwellings have load-bearing walls a metre or two apart; offices do not
+  const demo = $("plan").value.startsWith("demo");
+  $("minSpan").value = demo ? 0.5 : 6;
+  $("maxSpan").value = demo ? 8 : 12;
+  schedule();
+});
+["minSpan", "maxSpan", "atrium", "variant", "scoreMode"].forEach(id =>
+  $(id).addEventListener("change", schedule));
+$("run").addEventListener("click", run);
+
+// ---- populate variant and weight choices from the server, then run ------
+fetch("/api/defaults").then(r => r.json()).then(d => {
+  $("variant").innerHTML = (d.variants || ["V1", "V3"]).map(v => {
+    const names = {V1: "V1 - score + feature judge",
+                   V2: "V2 - score + image judge",
+                   V3: "V3 - score only (baseline)",
+                   V4: "V4 - score + quantum judge"};
+    return `<option value="${v}">${names[v] || v}</option>`;
+  }).join("");
+  $("scoreMode").innerHTML = (d.score_modes || ["algo"]).map(m => {
+    const names = {algo: "algorithmic (equal weights)",
+                   learned: "learned (pairwise ranking)"};
+    return `<option value="${m}">${names[m] || m}</option>`;
+  }).join("");
+  run();
+});
+</script>
+</body>
+</html>

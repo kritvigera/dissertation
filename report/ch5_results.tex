@@ -1,0 +1,457 @@
+\chapter{Results}
+\label{ch:results}
+
+\section{The evaluation protocol}
+
+Four variants, sharing every stage before the branch, are run end to end on
+seven real plans that no model has seen, under both sets of score weights.
+The plans are drawn from Swiss Dwellings, the only source where the
+labelling procedure applies exactly as written, and were selected to be
+typical rather than favourable: each plan in the corpus was scored by its
+distance from the corpus median across seven scale-independent
+measurements, the 120 closest were sorted by size, and seven were taken at
+even intervals so that the set spans small to large.
+Table~\ref{tab:demo} gives them.
+
+\begin{table}[H]
+\centering
+\caption[The seven evaluation plans]{The seven evaluation plans. Marked
+columns are those the original drawing recorded, which the generator
+retains in every candidate. The final column is the rank the derived
+arrangement receives from the baseline variant under learned weights.}
+\label{tab:demo}
+\small
+\input{tables/demo_plans}
+\end{table}
+
+For each plan the pipeline parses the walls, enumerates candidates,
+re-derives the label from that plan's own walls, and runs each variant. The
+measurements taken are whether the correct arrangement is the variant's
+first choice and whether it is among the first five; the rank of the
+correct arrangement in the variant's full ordering, which is more
+informative than a hit rate when hit rates are low; and two measures of
+near-agreement, namely the average distance from each chosen column to the
+nearest correct one and the proportion of columns that coincide within a
+tolerance. Requiring an exact match alone would discard the distinction
+between a near miss and a complete failure.
+
+Variants are compared by paired tests across the seven plans, a Wilcoxon
+signed-rank test together with an exact sign test, rather than by placing
+two averages side by side. Seven plans provide limited statistical power,
+which is stated with the results rather than left for the reader to infer.
+
+\section{Candidate coverage}
+\label{sec:coverage}
+
+Coverage is reported before any accuracy figure because it caps all of
+them. If the correct arrangement is absent from the candidate set, an
+accuracy figure measures that absence rather than the quality of any
+variant, and all four variants would be measuring the same ceiling.
+
+\textbf{The derived arrangement is present in the candidate set for all
+seven plans.} Reaching that required five changes, each documented in the
+stage it affects: aligning the parser with the labelling procedure as
+Section~\ref{sec:parser} describes; adding the wall-based placement rule to
+the generator; treating marked columns as fixed input; widening the
+permitted span range so that the correct arrangement's own grid lines are
+not excluded in advance, since load-bearing walls in these dwellings can
+stand 0.13\,m apart; and excluding angled-wall positions, which the
+labelling procedure cannot represent. The accuracy figures that follow are
+therefore unconditional.
+
+Candidate set sizes range from 512 to 4,000 per plan, the upper figure
+being the configured limit at which the generator begins sampling.
+
+\section{The judges on their own task}
+\label{sec:mlresults}
+
+Before the variants are compared end to end, each judge is measured on the
+classification task it was trained for.
+
+\subsection{The feature judge}
+
+Table~\ref{tab:ml1} reports the feature judge. The headline figure is
+0.862 ROC AUC over five grouped splits.
+
+\begin{table}[H]
+\centering
+\caption[The feature judge]{The feature judge. The pooled figure is the
+mean over five grouped splits with its standard deviation; the remaining
+rows are single deterministic runs. ``Against transplant examples only''
+restricts the negative class to one kind at a time.}
+\label{tab:ml1}
+\small
+\input{tables/ml1}
+\end{table}
+
+Four observations follow.
+
+\textbf{The reported figure fell from 0.947 to 0.862 when the training
+examples were corrected}, as Section~\ref{sec:negatives} described.
+Approximately a tenth of the previous figure was the model recognising its
+own example generator. The reduction is reported as a finding rather than
+adjusted away, and it is the clearest single illustration of why the
+construction of negative examples deserves attention.
+
+\textbf{No single measurement approaches the full model.} The best
+single-threshold rule reaches 0.679, so the remaining signal genuinely
+requires several measurements in combination.
+
+\textbf{Transplanted arrangements are the hardest class} at 0.668, since
+they are real arrangements merely placed on the wrong building. They are
+also the class closest to the judge's actual task in the pipeline, where
+every candidate is geometrically valid and the question is which suits
+this plan, so the pooled figure should be read alongside them.
+
+\textbf{Transfer between sources is asymmetric.} A model trained on Swiss
+drawings and tested on CubiCasa reaches 0.673, while the reverse reaches
+0.805. Cross-source claims therefore rest on the pooled model, and the
+asymmetry is reported rather than averaged out.
+
+The two classes are balanced in equal proportion by construction, so
+neither figure should be read as an estimate of performance at deployment
+prevalence; both ROC AUC and PR AUC are reported for completeness.
+
+\subsection{The image judge, and what its advantage consists of}
+
+Table~\ref{tab:ml2} reports the image judge together with the two controls
+that interpret it: the same network with its wall layer blanked, and the
+feature judge fitted on the measurements of exactly the same rows and
+scored on exactly the same splits.
+
+\begin{table}[H]
+\centering
+\caption[The image judge and its controls]{The image judge and its
+controls, over three grouped splits. The feature judge here is
+\emph{paired}: fitted on the measurements of the same rows and scored on
+the same split indices, which removes the confound present in an earlier
+version of this comparison.}
+\label{tab:ml2}
+\small
+\input{tables/ml2}
+\end{table}
+
+Figure~\ref{fig:cnnvsfeatures} shows the three side by side, and the middle
+bar carries the finding.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{11_cnn_vs_features}
+\caption[Where the image judge's advantage comes from]{Where the image
+judge's advantage comes from. Given the same information as the feature
+judge, that is columns without walls, the network performs equivalently.
+The advantage appears only when the wall layer is present.}
+\label{fig:cnnvsfeatures}
+\end{figure}
+
+\textbf{Given the same information, the two judges are
+indistinguishable}: 0.874 for the picture against 0.860 for the
+measurements, with overlapping intervals. \textbf{Given the walls, the
+picture is far better} at 0.995, and the advantage survives testing on a
+source the model never saw, at 0.983 and 0.988.
+
+The conclusion is therefore about information rather than architecture. The
+convolutional network does not read column patterns better than a
+gradient-boosted model reads measurements of them. The picture wins because
+it can show whether the columns coincide with the walls, and the
+scale-independent measurements cannot carry that relationship across
+sources drawn in different units.
+
+One qualification travels with this result wherever it appears. The derived
+labels place columns inside load-bearing walls \emph{by definition}, so the
+strength of the column-wall registration signal is partly a restatement of
+the labelling procedure. The same qualification applies to the off-wall
+measure and to its large learned weight in Table~\ref{tab:weights}. These
+are treated as one finding with three appearances: on this corpus, the
+strongest available indication that an arrangement is real is whether its
+columns coincide with its walls, and every representation permitted to see
+the walls discovers it.
+
+\subsection{The quantum judge}
+
+Table~\ref{tab:quantum} reports the size sweep, and
+Figure~\ref{fig:quantum} plots it.
+
+\begin{table}[H]
+\centering
+\caption[The quantum judge across training-set sizes]{The quantum judge
+across training-set sizes, all models scored on one fixed held-out test
+set. Q marks quantum models and C classical. ``Gain'' is the change from
+the smallest to the largest training set; ``Time'' is the fitting time at
+the largest.}
+\label{tab:quantum}
+\scriptsize
+\input{tables/quantum}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{10_quantum_vs_classical}
+\caption[Quantum and classical models against training-set size]{Quantum
+and classical models against training-set size, on one fixed test set. The
+circuits track the capacity-matched linear control; only the tree
+ensembles convert additional data into accuracy.}
+\label{fig:quantum}
+\end{figure}
+
+Three findings follow, and the third is the one worth stating in a
+defence.
+
+\textbf{Given the same information, the circuits match their
+capacity-matched control.} At every size the two quantum models lie within
+about 0.015 of logistic regression on the same four measurements, and at
+2,000 rows they are slightly ahead. A four-qubit circuit can learn this
+task.
+
+\textbf{The circuits gain almost nothing from more data.} Fifty times more
+training data moves them by 0.007 and 0.005, which is within run-to-run
+variation. The capacity-matched linear control behaves identically at
+$-0.001$, while the tree ensembles convert the same additional data into
+0.075 and 0.084.
+
+\textbf{The ceiling is therefore capacity, not data.} Because the circuits
+improve with data in the manner of a linear model rather than a flexible
+one, the limit on this task lies in the expressive capacity of four qubits
+and two entangling layers, not in the number of examples available. That
+distinction cannot be drawn from a single small-sample run, which is why
+the experiment sweeps the training size instead of reporting one figure.
+
+The difference in computational cost is part of the result. At the largest
+size the plain circuit required 40 seconds of simulation and the
+re-uploading circuit 251, against 3 to 5 seconds for the tree ensembles and
+under a second for logistic regression, to reach a lower score.
+
+\subsection{A cautionary result retained deliberately}
+
+On an earlier version of the labels, which placed a column at every grid
+crossing, this stage appeared to show a quantum ensemble matching a strong
+classical model. When the labels were corrected the finding reversed
+completely and the ensemble became the weakest model in the table. The
+circuits had not changed; the task had. The episode is retained because it
+demonstrates how readily comparisons of this kind produce misleadingly
+favourable results, and it is the reason the controls, rather than the
+circuits, constitute this stage's contribution.
+
+\section{The score weights}
+\label{sec:weightresults}
+
+Table~\ref{tab:weights} compares the two weight vectors.
+
+\begin{table}[H]
+\centering
+\caption[Fixed and learned score weights]{Fixed and learned score weights.
+The learned vector is normalised to a mean absolute weight of one, the same
+scale as the fixed vector; ranking is invariant to that scale.}
+\label{tab:weights}
+\small
+\input{tables/weights}
+\end{table}
+
+On held-out plans the learned weights rank the real arrangement above an
+alternative in 89.4 per cent of paired comparisons, with a standard
+deviation of 0.6 percentage points across splits, against 74.7 per cent for
+the fixed weights on the same data.
+
+The signs are the informative part. Span demand and repetition carry the
+signs that design reasoning predicts: real arrangements have shorter loaded
+spans and more repeated bays than the alternatives generated on their own
+grids. The off-wall measure carries the largest weight, though partly by
+construction as noted above. Density and irregularity, however, carry
+\emph{negative} weights, which means the corpus contains real arrangements
+that are \emph{denser} and \emph{less regular} than the alternatives.
+
+That is not an error but a property of the buildings. These are
+wall-bearing dwellings in which columns stand where the load-bearing walls
+stand, and those walls follow rooms rather than a regular structural
+module. Figure~\ref{fig:weights} shows the two vectors, and this single
+result predicts the central pattern of the accuracy table that follows.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{06_weights}
+\caption[The two sets of score weights]{The two sets of score weights. The
+learned vector inverts the sign on density and irregularity relative to
+the design intuition that the fixed vector encodes, because real
+wall-derived arrangements are denser and less regular than the
+alternatives available on the same grid.}
+\label{fig:weights}
+\end{figure}
+
+\section{The four variants end to end}
+\label{sec:variants}
+
+Table~\ref{tab:accuracy} is the principal result of this thesis.
+
+\begin{table}[H]
+\centering
+\caption[Accuracy of the four variants]{Accuracy of the four variants under
+both sets of score weights, averaged over the seven evaluation plans.
+Rank is the position of the derived arrangement in the variant's full
+ordering of 512 to 4,000 candidates. Distance is the mean Chamfer distance
+between chosen and correct columns; overlap is the proportion coinciding
+within tolerance.}
+\label{tab:accuracy}
+\small
+\input{tables/accuracy}
+\end{table}
+
+\subsection{The score weights dominate}
+
+Under fixed weights the derived arrangement sits at a median rank of about
+2,395 out of roughly 4,000 for every variant, and no variant recovers it
+first on any plan. The equal-weight score prefers sparse, regular grids,
+while real wall-derived arrangements are dense and irregular; the negative
+density and irregularity coefficients of
+Section~\ref{sec:weightresults} predicted exactly this. With the correct
+arrangement never reaching the shortlist the judges see, a judge can only
+change which \emph{wrong} answer is selected.
+
+Under learned weights the picture changes entirely. The score \emph{alone}
+places the correct arrangement at a median rank of 9, recovers it exactly
+on one of the seven plans, and averages 0.271\,m Chamfer distance with 0.722
+overlap. The difference between the two halves of
+Table~\ref{tab:accuracy} is far larger than any difference within either
+half: \textbf{the choice of weights matters much more than the choice of
+judge}.
+
+\subsection{The judges are second-order}
+
+Within the learned half, the image judge trims the Chamfer distance
+slightly, from 0.271 to 0.264\,m, but also lowers the overlap slightly,
+from 0.722 to 0.718: a mixed result, not a consistent improvement. The
+feature judge trades a first-place recovery away for the best distance of
+the four (0.248\,m), and the quantum judge, now trained on the same 80\%
+training partition as the other two, recovers the arrangement first on
+the same one plan as the baseline and the image judge, and returns the
+weakest agreement of the four. Figure~\ref{fig:accuracy} shows both
+halves.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{12_accuracy}
+\caption[Geometric agreement by variant and weight set]{Geometric
+agreement by variant and weight set. Pale bars are fixed weights and solid
+bars learned weights. The gap between the two weight sets exceeds every
+difference between variants within either set.}
+\label{fig:accuracy}
+\end{figure}
+
+\subsection{Significance}
+
+Table~\ref{tab:tests} gives the paired tests for the learned half, which is
+the only half in which the variants differ at all.
+
+\begin{table}[H]
+\centering
+\caption[Paired significance tests]{Paired significance tests across the
+seven evaluation plans, learned weights, for every comparison in which the
+two variants differ. No comparison reaches conventional significance.}
+\label{tab:tests}
+\small
+\input{tables/tests}
+\end{table}
+
+\textbf{No variant separates from the baseline at conventional
+significance.} Every paired Wilcoxon test returns $p = 1.000$: each pair
+of variants differs on at most two of the seven plans, and the
+differences run in both directions. Any difference between variants is
+well within the noise at this sample size.
+
+This is the answer to the third research question of
+Section~\ref{sec:questions}, and it is reported as the outcome of the
+experiment rather than presented as a shortfall. The protocol was designed
+so that this result would be publishable: the baseline was retained, the
+comparison was paired, and the sample size and its consequences are
+stated.
+
+\section{Sensitivity analyses}
+\label{sec:sensitivity}
+
+Every hand-chosen constant in the pipeline is varied and its influence
+measured.
+
+\subsection{The score weights}
+
+Table~\ref{tab:sensitivity} perturbs each weight by $\pm 50$ per cent and
+removes each measure in turn.
+
+\begin{table}[H]
+\centering
+\caption[Sensitivity to the score weights]{Sensitivity of the baseline
+variant to the score weights, fixed-weight mode. Kendall's $\tau$ compares
+the perturbed ranking with the nominal one; top-5 overlap is the
+proportion of the nominal top five that survives.}
+\label{tab:sensitivity}
+\small
+\input{tables/sensitivity}
+\end{table}
+
+Varying any single weight by half keeps Kendall's $\tau$ between 0.85 and
+0.92 and leaves four-fifths of the top five unchanged. That is the
+empirical defence of equal weighting promised in
+Section~\ref{sec:weights}: the vector cannot be argued for, but the
+ranking barely depends on it. Removing a measure entirely costs more, with
+$\tau$ falling to between 0.69 and 0.78, so every measure carries real
+ordering information and none is decoration.
+
+One perturbation is diagnostic. Removing the density measure
+\emph{improves} the correct arrangement's mean rank from 2,429 to 643,
+which independently confirms from a different direction the negative
+density coefficient that the learned weights found.
+
+\subsection{The judge's authority}
+
+Table~\ref{tab:lambda} varies $\lambda$ from 0 to 1.
+
+\begin{table}[H]
+\centering
+\caption[Sensitivity to the judge's weight]{Sensitivity to $\lambda$, the
+weight given to the judge in Equation~\eqref{eq:blend}, for variant V1. At
+$\lambda = 0$ every variant reduces to the baseline.}
+\label{tab:lambda}
+\small
+\input{tables/lambda}
+\end{table}
+
+In fixed-weight mode $\lambda$ is inert, for the reason given above: the
+correct arrangement never reaches the shortlist the judge sees. In learned
+mode the effect is real, small and mixed in both directions. Raising
+$\lambda$ from 0 to 1 worsens the mean rank slightly, from 21.7 to 21.9,
+costs one first-place recovery, and gains no top-five placing. The default
+of 0.3 is defensible precisely because so little depends on it.
+
+\subsection{The labelling threshold}
+
+Table~\ref{tab:thresholdacc} is the most consequential sensitivity analysis
+in this report, because every figure in it rests on the 160\,mm constant.
+
+\begin{table}[H]
+\centering
+\caption[Sensitivity to the labelling threshold]{Sensitivity to the
+load-bearing threshold. The labels are re-derived from each plan's own wall
+thicknesses at each value and the accuracy re-measured. ``Label cols.'' is
+the mean number of columns in the resulting label.}
+\label{tab:thresholdacc}
+\scriptsize
+\input{tables/threshold_accuracy}
+\end{table}
+
+Under learned weights the result is stable between 140 and 160\,mm, with a
+mean rank of about 24 and 22 respectively and distance of 0.232 and
+0.271\,m, and degrades beyond, reaching rank 90 at 180\,mm and 195 at
+200\,mm with distance rising to 0.612\,m. Part of that degradation is
+expected and not independent: the corpus from which the learned weights
+were fitted was itself derived at 160\,mm, so the weights are matched to
+that threshold. The honest summary is that the headline result tolerates a
+$\pm 20$\,mm error in the threshold and is strongly conditioned beyond
+that, and this table is the price of the assumption.
+
+\subsection{Score and judge independence}
+
+If the score's ordering and the judge's were nearly identical, the judge
+would be adding nothing and variant V1 would be the baseline under another
+name. The rank correlation between them, measured across the full candidate
+set of each plan, has a mean of 0.161 and a range of $0.076$ to $0.277$.
+The judge therefore carries genuinely independent information. That it
+nonetheless fails to improve the ranking materially is a separate finding,
+and one that the four-variant design exists to expose.

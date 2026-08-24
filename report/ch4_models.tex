@@ -1,0 +1,250 @@
+\chapter{Models}
+\label{ch:models}
+
+Four things are learned in this work: the score weights of
+Section~\ref{sec:weights}, and the three judges that variants V1, V2 and
+V4 use to re-order the score's fifteen best candidates.
+Table~\ref{tab:models} summarises them. This chapter describes each, and
+gives particular attention to the design decisions that make their
+comparison fair, since those decisions are where an earlier version of
+this work was weakest.
+
+\begin{table}[H]
+\centering
+\caption[The four learned components]{The four learned components, their
+data and their evaluation protocol. The seven evaluation plans are removed
+by a single shared loading function before any dataset is constructed, so
+the exclusion is enforced in one place rather than four.}
+\label{tab:models}
+\small
+\begin{tabularx}{\textwidth}{lXll}
+\toprule
+Component & Data & Split & Repeats \\
+\midrule
+Score weights & 52,724 paired comparisons over 11,098 plans & by plan & 5 seeds \\
+Feature judge (V1) & 24,920 rows: 12,460 real arrangements and their altered copies & by plan & 5 seeds \\
+Image judge (V2) & the same rows, rasterised to $64\times64$ & by plan & 3 seeds \\
+Quantum judge (V4) & 400 to 19,936 rows, 4 selected measurements & by plan, one fixed test set & 1 per size \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Constructing the training examples}
+\label{sec:negatives}
+
+A judge learns from examples: real arrangements labelled plausible,
+implausible ones labelled otherwise. Since no dataset supplies the second
+class, it must be constructed, and the honesty of the judge depends
+entirely on how.
+
+\subsection{The circularity that had to be removed}
+
+The previous version of the feature judge constructed its implausible
+examples by editing the \emph{measurements}. It multiplied the two
+bay-variability figures, overwrote the interior-column proportion,
+stretched the aspect ratio, and recalculated the regularity measure
+derived from them. Those are four of the six numbers the model then read.
+The task therefore reduced to detecting which measurements had been
+altered, and a single-threshold rule on one measurement recovered most of
+the reported performance. The model was, in effect, grading its own example
+generator.
+
+\subsection{Examples constructed in geometry}
+
+Implausible examples are now created by moving the \emph{column positions},
+before any measurement or pixel is computed. Four kinds are generated,
+cycling evenly, and Figure~\ref{fig:negatives} shows them.
+
+\begin{description}[style=unboxed,leftmargin=0pt]
+\item[Transplant.] Another plan's real arrangement, rescaled onto this
+plan's footprint. Everything about it is genuinely building-like; it is
+simply the wrong building's answer. This tests whether the judge can tell
+that an arrangement suits \emph{this} plan.
+\item[Jitter.] Every column displaced by a random amount drawn from a
+normal distribution with standard deviation 0.35 of the median span. Tests
+whether columns align into lines at all.
+\item[Shear.] The arrangement skewed so that its lines are no longer
+perpendicular. Tests orthogonality.
+\item[Dropout.] Thirty per cent of columns removed and some survivors
+displaced by a span. Tests the completeness of the load path.
+\end{description}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{07_negatives}
+\caption[Real and altered arrangements]{One real arrangement and its four
+altered counterparts. The alteration is applied to the column
+\emph{coordinates}, before any measurement is taken, so the judge must
+distinguish real geometry from broken geometry rather than detect which
+numbers were edited.}
+\label{fig:negatives}
+\end{figure}
+
+The same examples and labels are used by all three judges. That shared
+basis is what allows the comparison between them to be a comparison of
+methods rather than of datasets.
+
+\section{The feature judge}
+\label{sec:ml1}
+
+The feature judge is a gradient-boosted decision ensemble, 200 trees of
+depth 3, over six measurements chosen to be independent of scale: aspect
+ratio, bay variability in each direction, regularity, the proportion of
+interior columns, and the ratio of mean bay sizes. The restriction to
+scale-independent measurements is forced by the corpus, whose three sources
+use three unit systems, as Section~\ref{sec:corpus} explained.
+
+Positives are the derived arrangements of 12,460 plans, with the seven
+evaluation plans removed before construction. Splits are grouped by plan,
+so that a plan and its altered copy can never fall on opposite sides, and
+are repeated over five seeds.
+
+\section{The image judge}
+\label{sec:ml2}
+
+The image judge reads a picture of the arrangement. Each is drawn on a
+$64\times64$ grid of pixels in two layers: the first holds the
+load-bearing walls as single-pixel lines, the second the columns as
+three-by-three blocks. Everything drawn is scaled to fit the canvas, which
+removes absolute size entirely. Figure~\ref{fig:mlinputs} shows the
+inputs. The network is small by design, three convolutional blocks with
+pooling, global average pooling, dropout and a single output, totalling
+about 15,000 weights, because the corpus contains only some twelve
+thousand positive examples.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{11_inputs}
+\caption[Inputs to the image judge]{Inputs to the image judge for one
+plan. The upper row is the wall layer and the lower row the column layer,
+for the real arrangement and its four altered counterparts. The wall layer
+is identical across a row; only the registration between columns and walls
+changes.}
+\label{fig:mlinputs}
+\end{figure}
+
+The scaling to a fitted canvas is the design argument for an image judge on
+this corpus: a plan in metres and a plan in drawing pixels become the same
+kind of image, which sidesteps the unit problem that confines the feature
+judge to six measurements. The same property is also its cost. Once
+everything is scaled to fit, the judge cannot distinguish a six-metre span
+from a six-foot one. This is a deliberate trade rather than an oversight,
+and Section~\ref{sec:mlresults} quantifies what it buys.
+
+Implausible examples are created by moving the column positions and
+\emph{then} drawing them. Adding noise to the pixels instead would
+reproduce, in image form, exactly the circularity that
+Section~\ref{sec:negatives} removed from the feature judge.
+
+\subsection{The blanked-wall control}
+
+The comparison between the two judges is confounded by a difference in
+information as well as in architecture: the image judge sees the walls and
+the feature judge does not. A third model resolves the confound, namely the
+same network on the same rows with the wall layer set to zero.
+Section~\ref{sec:mlresults} reports all three, and the result changes the
+conclusion.
+
+\section{The quantum judge}
+\label{sec:quantum}
+
+The quantum judge applies a variational quantum classifier to the same
+task. Four measurements are selected by analysis of variance on the
+training data and scaled into the interval $[0, \pi]$. Each becomes the
+rotation angle of one quantum bit; the bits are then entangled and rotated
+by trainable amounts, and one is measured to produce the output, which a
+logistic function converts to a probability. Training adjusts the
+trainable rotations by gradient descent in the same manner as any neural
+network.
+
+Two circuit designs are tested: a standard variational classifier with one
+data encoding followed by two strongly entangling layers, and a design that
+re-introduces the input data at every layer, which is known to make small
+circuits considerably more expressive
+\citep{perezsalinas2020reupload}. Both run on a state-vector simulator,
+which reproduces an ideal quantum computer with no noise and no
+decoherence; real hardware would only be harder.
+
+\subsection{What can and cannot be claimed}
+
+Four simulated quantum bits cannot support a claim of quantum advantage in
+either direction, and none is made. Two features of the design make the
+comparison informative nonetheless.
+
+\textbf{Capacity-matched controls.} Logistic regression is fitted on the
+\emph{same four} measurements, the \emph{same} rows and the \emph{same}
+test set as the circuits. Comparing a four-qubit circuit against a large
+ensemble trained on everything would judge it unfairly; comparing it
+against nothing would tell the reader nothing. Gradient boosting is also
+reported on the same four measurements and on all six, to show what
+additional capacity and additional information are worth.
+
+\textbf{A training-set size sweep on one fixed test set.} Every model is
+fitted at 400, 2,000, 8,000 and 19,936 training rows and scored on the same
+held-out plans. Holding the test set fixed is essential rather than
+decorative: an interim version of this experiment measured small-sample
+models on a small test set and full-corpus models on a larger one, and the
+circuits then appeared to \emph{degrade} with more data. The
+capacity-matched control fell by the same amount, which is what revealed
+the error rather than the finding. That interim result is not reported as a
+result.
+
+\subsection{Reaching the full corpus}
+
+An earlier implementation evaluated the circuit once per row in a Python
+loop, and it was that, rather than any property of the physics, which
+confined this stage to a few hundred examples. Evaluating a whole
+minibatch in a single call using parameter broadcasting is approximately
+160 times faster and makes the entire corpus reachable on a simulator. The
+judge that the pipeline uses is trained on the canonical 80\% training
+partition, so that all three judges see identical data and none has seen
+the held-out 20\% or the seven demonstration plans.
+
+\section{Combining a judge with the score}
+\label{sec:blend}
+
+Each judge receives the fifteen best-scoring candidates and re-orders them
+by Equation~\eqref{eq:blend}, repeated here for convenience:
+\[
+\text{combined} = z(\text{penalty}) + \lambda\bigl(1 - P(\text{plausible})\bigr).
+\]
+The penalty is standardised across the \emph{whole} candidate set rather
+than within the shortlist. This detail matters. Standardising within the
+shortlist spreads fifteen near-identical scores across a full interquartile
+range, which inflates the score's differences and mutes the judge at any
+reasonable $\lambda$; an interim run with that error produced identical
+tables for all four variants, which is how it was caught. Standardising
+over the full set leaves the shortlist's differences small, so the judge
+holds real authority.
+
+The default $\lambda$ is 0.3. Section~\ref{sec:sensitivity} varies it from
+0 to 1 and reports the effect, rather than defending the default by
+argument.
+
+\section{The four variants}
+
+Table~\ref{tab:variants} states the four paths under comparison. All share
+every stage before the branch, so the comparison is controlled: identical
+grid, identical candidates, identical score table. Variant V3 is the
+baseline. If V1, V2 and V4 do not improve on it under the protocol of
+Chapter~\ref{ch:results}, that is the result of the experiment and is
+reported as such.
+
+\begin{table}[H]
+\centering
+\caption[The four pipeline variants]{The four pipeline variants. Each runs
+under both sets of score weights, giving the eight rows of
+Table~\ref{tab:accuracy}.}
+\label{tab:variants}
+\small
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+Variant & Judge & Representation the judge reads \\
+\midrule
+V1 & Feature judge & Six measurements, independent of scale \\
+V2 & Image judge & A $64\times64$ two-layer picture, scaled to fit \\
+V3 & None & --- (the score's own order stands; the baseline) \\
+V4 & Quantum judge & Four measurements as quantum-bit rotation angles \\
+\bottomrule
+\end{tabularx}
+\end{table}

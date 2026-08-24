@@ -1,0 +1,23 @@
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Perturbation & Kendall $\tau$ & Top-1 kept & Top-5 kept & Rank \\
+\midrule
+Nominal (unperturbed) & 1.000 & 1.000 & 1.000 & 2429 \\
+Density, +50% & 0.881 & 0.857 & 0.857 & 2873 \\
+Density, -50% & 0.853 & 0.857 & 0.943 & 1556 \\
+Density, removed & 0.690 & 0.571 & 0.829 & 643 \\
+Irregularity, +50% & 0.902 & 0.714 & 0.914 & 2546 \\
+Irregularity, -50% & 0.870 & 0.714 & 0.829 & 2236 \\
+Irregularity, removed & 0.699 & 0.143 & 0.543 & 2002 \\
+Off-wall, +50% & 0.915 & 1.000 & 1.000 & 2213 \\
+Off-wall, -50% & 0.896 & 0.857 & 0.886 & 2660 \\
+Off-wall, removed & 0.778 & 0.857 & 0.771 & 2861 \\
+Repetition, +50% & 0.901 & 0.857 & 0.886 & 2138 \\
+Repetition, -50% & 0.875 & 0.571 & 0.800 & 2658 \\
+Repetition, removed & 0.725 & 0.429 & 0.486 & 2838 \\
+Span demand, +50% & 0.865 & 0.571 & 0.857 & 2122 \\
+Span demand, -50% & 0.851 & 1.000 & 0.829 & 2702 \\
+Span demand, removed & 0.704 & 0.429 & 0.629 & 2888 \\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,19 @@
+\begin{tabular}{lrr}
+\toprule
+Experiment & ROC AUC & PR AUC \\
+\midrule
+Feature judge, five grouped splits & 0.862 $\pm$ 0.006 & 0.831 $\pm$ 0.008 \\
+Best single-measurement threshold & 0.679 $\pm$ 0.008 & --- \\
+\midrule
+\quad tested on Swiss only & 0.896 & 0.865 \\
+\quad tested on CubiCasa only & 0.774 & 0.747 \\
+\midrule
+Trained Swiss, tested CubiCasa & 0.673 & 0.608 \\
+Trained CubiCasa, tested Swiss & 0.805 & 0.727 \\
+\midrule
+Against transplant examples only & 0.668 & 0.884 \\
+Against jitter examples only & 0.960 & 0.989 \\
+Against shear examples only & 0.956 & 0.984 \\
+Against dropout examples only & 0.881 & 0.965 \\
+\bottomrule
+\end{tabular}

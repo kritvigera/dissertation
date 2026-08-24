@@ -1,0 +1,202 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+\section{The problem}
+\label{sec:problem}
+
+Early in the design of a building, someone must decide where its columns
+will stand. At that point the architectural drawing exists and the
+structural design does not: the drawing records walls, rooms, doors and
+dimensions, but it contains no statement of which elements will carry the
+weight of the floors above. The decision is usually made quickly and from
+experience, and it constrains a great deal of what follows, including the
+distances floors must span, the depth of the floor construction, the
+number and size of foundations, and how much of the architect's intended
+layout survives contact with the structure.
+
+Two properties make this a natural target for automation. The decision is
+made from information that is already digital, since architectural plans
+are drawn in vector form and their wall geometry can be read directly. And
+the space of reasonable answers is discrete and enumerable: a column
+arrangement is a choice of grid lines together with a rule for which of
+their crossings receive a column, so for a given plan and a given
+permissible range of spans the candidates can be listed exhaustively or
+sampled representatively.
+
+The difficulty lies not in generating candidates but in judging them. To
+say that one arrangement is better than another requires either a model of
+what makes an arrangement good, which invites disagreement about the
+model, or examples of arrangements that real engineers produced, which are
+not present in architectural datasets. This thesis confronts that
+difficulty directly rather than assuming it away, and the resulting
+measurement discipline is the greater part of its contribution.
+
+\section{Research questions}
+\label{sec:questions}
+
+The work is organised around three questions, in rising order of
+importance.
+
+\begin{enumerate}
+\item \textbf{Can candidate arrangements be enumerated such that the real
+building's arrangement is among them?} This must be established first. If
+the correct answer is absent from the candidate set, then every accuracy
+figure measures that absence rather than the quality of any method, and
+the comparison that follows is meaningless. Chapter~\ref{ch:results}
+therefore reports candidate coverage before any accuracy figure.
+
+\item \textbf{Can a purely geometric score order those candidates so that
+the real arrangement is near the top?} By purely geometric is meant a
+score computed from the positions of the columns and the geometry of the
+plan, containing no member sizes, no material prices and no load values.
+The motivation for that restriction is given in
+Section~\ref{sec:removals} and developed in Chapter~\ref{ch:method}.
+
+\item \textbf{Do learned classifiers improve on that score?} Three are
+tested, reading respectively numerical measurements of an arrangement, a
+picture of it, and a four-qubit quantum encoding of it. All three are
+trained on identical examples and labels, and the score-only pipeline is
+retained as the baseline that each must beat.
+\end{enumerate}
+
+\section{Structure of the pipeline}
+\label{sec:pipeline}
+
+Figure~\ref{fig:pipeline} sets out the stages. A plan and a set of user
+constraints enter at the left. The parser converts wall segments into grid
+lines and candidate column positions. The generator lists the arrangements
+those grid lines permit within the user's span limits. The score assigns
+each candidate a single number. At that point the pipeline branches into
+the four variants that the thesis compares, and each produces one chosen
+arrangement. The evaluation stage measures all four against the derived
+labels on plans that no model has seen.
+
+\begin{figure}[H]
+\centering
+\small
+\begin{tabular}{@{}rll@{}}
+\multicolumn{3}{@{}l}{\textit{Input:} architectural plan (vector walls) $+$ user constraints}\\[4pt]
+\midrule
+Stage 04 & parser & walls $\rightarrow$ grid lines $\rightarrow$ candidate positions \\
+Stage 05 & generator & every arrangement within the span limits \\
+Stage 06 & score & five geometric measures $\rightarrow$ one penalty \\
+ & & (weights fixed, or learned in stage 08) \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{The branch: four variants, each choosing one arrangement}}\\[2pt]
+V1 & stage 07 & re-ranked by the feature judge \\
+V2 & stage 11 & re-ranked by the image judge \\
+V3 & --- & not re-ranked; the score's own order stands (baseline) \\
+V4 & stage 10 & re-ranked by the quantum judge \\
+\midrule
+Stage 12 & evaluation & coverage, accuracy, significance, sensitivity \\
+\bottomrule
+\end{tabular}
+\caption[The pipeline and its four variants]{The pipeline and its four
+variants. Stage numbers refer to the repository folders that implement each
+step. All four variants share every stage before the branch, so the
+comparison between them is controlled: identical grid, identical
+candidates, identical score.}
+\label{fig:pipeline}
+\end{figure}
+
+The three judges consume the score's fifteen best candidates and re-order
+them by combining the score with their own estimate of plausibility,
+\begin{equation}
+\text{combined} = z(\text{penalty}) + \lambda\bigl(1 - P(\text{plausible})\bigr),
+\label{eq:blend}
+\end{equation}
+where $z$ is a robust standardisation computed over the whole candidate
+set and $\lambda$ controls how much authority the judge holds. The value
+of $\lambda$ is varied in Chapter~\ref{ch:results} rather than asserted.
+
+\section{Objectives}
+\label{sec:objectives}
+
+\begin{enumerate}
+\item Derive a column-arrangement label for open floor-plan corpora,
+document every assumption in the derivation, and measure how far the
+results depend on the one arbitrary constant it contains.
+\item Align candidate generation with that derivation until the label is
+reachable, and report the coverage rate before any accuracy figure.
+\item Build a score whose only free parameters are five interpretable
+weights, and obtain those weights in two independent ways so that the
+hand-set and learned versions can be compared.
+\item Train three judges on one identical task, with implausible examples
+constructed in a way that does not leak the answer.
+\item Compare all four variants under a single protocol using paired
+statistics, retaining the algorithm-only path as the baseline.
+\item Leave every known weakness either closed or explicitly stated.
+\end{enumerate}
+
+\section{Scope, and what was deliberately removed}
+\label{sec:removals}
+
+An earlier version of this pipeline estimated a construction cost. It
+selected a steel section for every beam and column, priced the steel by
+weight, added a charge for each column standing away from a wall and for
+each additional section size, and billed erection labour by the hour. That
+machinery has been removed, and the reasoning is worth stating because it
+shaped the present design.
+
+A cost estimate is only as defensible as its unit rates. The rates in
+question were indicative figures with no auditable source, and the first
+question any examiner would ask of them has no good answer. What the
+industry evidence behind them actually establishes is not a price but a
+set of \emph{geometric drivers}: that fabrication and erection dominate
+the cost of a steel package, that connections drive a large share of
+fabrication cost while contributing little of the tonnage, and that
+repeated bay sizes reduce cost through repeated formwork and simpler
+procurement. Those drivers can be expressed as geometry and ranked without
+attaching money to them, which is what the score of
+Chapter~\ref{ch:method} does.
+
+Two further removals follow from the first. Member sizing existed only to
+support pricing, so it went with it; and a member-by-member check against
+the Eurocodes, which verified the sections that the pricing stage had
+selected, could not outlive the sizing it depended on. A lateral drift
+calculation briefly replaced that check and has since also been removed.
+
+The consequence is stated plainly rather than minimised. The pipeline
+performs no structural analysis. Structural reasoning enters at exactly
+one point, the span-demand measure of
+Section~\ref{sec:score}, and it enters as a proportionality rather than as
+a calculation. Agreement with the derived labels is therefore the only
+basis on which the four variants are compared, and no measurement in this
+thesis is independent of the labelling procedure. This is recorded as a
+limitation in Section~\ref{sec:limitations} and as the leading item of
+further work in Section~\ref{sec:further}.
+
+\section{Contribution}
+\label{sec:contribution}
+
+The claim was checked against literature published between 2020 and 2026,
+and Chapter~\ref{ch:literature} reports what was found, including work
+that narrows it. No individual component of this pipeline is new.
+Predicting column positions from plans with a convolutional network has
+been done \citep{ampanavos2021approxiframer}, and the decomposition from
+walls to grid lines to crossings is claimed in a granted patent
+\citep{wang2024columnrl}. Learning structural layout from real buildings
+has been done for shear walls \citep{liao2021shearwallgan,pizarro2021walls}.
+Applying a variational quantum classifier to building data has been done
+for post-earthquake safety assessment \citep{bhatta2024quantum}.
+
+What was not found is any study that applies an algorithmic score,
+feature-based learning, image-based learning and quantum learning to
+\emph{one identical task, on one corpus, with one set of labels}, while
+retaining the algorithm-only path as a baseline that the learned variants
+must beat. That controlled comparison is the contribution. Two supporting
+contributions are a documented and sensitivity-tested procedure for
+deriving column-arrangement labels for public floor-plan datasets, and a
+method for obtaining the score weights by ranking real arrangements
+against alternatives drawn from the same plan.
+
+\section{Outline of the report}
+
+Chapter~\ref{ch:literature} reviews the relevant literature and states the
+gap. Chapter~\ref{ch:method} describes the corpus, the labelling
+procedure, the parser, the generator and the score.
+Chapter~\ref{ch:models} describes the four models that were trained and
+the design decisions that make their comparison fair.
+Chapter~\ref{ch:results} reports the results, the significance tests and
+the sensitivity analyses. Chapter~\ref{ch:conclusion} discusses what the
+results mean, states the limitations, and identifies further work.

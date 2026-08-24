@@ -1,0 +1,8 @@
+source,mode,threshold,plans_kept,median_columns
+Swiss,absolute,0.14,8830,52.0
+Swiss,absolute,0.16,8744,40.0
+Swiss,absolute,0.18,8587,30.0
+Swiss,absolute,0.2,8407,24.0
+CubiCasa,relative,0.5,4793,15.0
+CubiCasa,relative,0.6,4223,11.0
+CubiCasa,relative,0.7,3180,10.0

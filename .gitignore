@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+env/
+
+# large raw datasets are not committed, only the extracted tables
+*.zip
+data/ResPlan/
+data/Swiss/
+data/CubiCasa/
+data/features_regenerated.csv
+data/.swiss_plans_cache.pkl
+
+# stage 11 saves the deployable image judge (a few hundred KB); regenerable
+11_cnn_baseline/cnn_judge.keras
+
+# LaTeX build artefacts; report.pdf itself is committed
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.lof
+report/*.lot
+report/*.bbl
+report/*.blg

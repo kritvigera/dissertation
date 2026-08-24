@@ -1,0 +1,30 @@
+{
+ "weights": {
+  "t_density": -0.4243364481595388,
+  "t_span_demand": 0.3796847312214915,
+  "t_irregularity": -0.4559093385476114,
+  "t_off_wall": 2.7707437402842165,
+  "t_repetition": 0.969325741787142
+ },
+ "raw_mean_coefficients": {
+  "t_density": -0.36701471361531574,
+  "t_span_demand": 0.641848560327747,
+  "t_irregularity": -0.4868437101195086,
+  "t_off_wall": 2.7859199138027573,
+  "t_repetition": 0.9583485152535637
+ },
+ "coefficient_std_over_splits": {
+  "t_density": 0.03326759999091559,
+  "t_span_demand": 0.16632511184584417,
+  "t_irregularity": 0.061540579545754565,
+  "t_off_wall": 0.08927812488853527,
+  "t_repetition": 0.012868803907940908
+ },
+ "pairwise_accuracy_test_mean": 0.8936141962335846,
+ "pairwise_accuracy_test_std": 0.006094694609996972,
+ "algorithmic_vector_accuracy_same_fold": 0.746824644549763,
+ "n_pairs": 52724,
+ "n_plans": 11098,
+ "seed": 42,
+ "note": "Pairwise logistic regression on differences of robustly normalised score terms; positives are derived ground truths, negatives are enumerated line-subset and placement alternatives over the same plan's grid. Never trained on the algorithmic score's output. The deployed vector is fitted on the canonical 80% training partition; the accuracy figures are the mean over five repeated grouped splits."
+}
